@@ -525,9 +525,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
-/* ===== Safety net: ensure sink label names are present & visible ===== */
+
+/**
+ * 3) Hard fix: inject sink names if they are missing/blank in HTML.
+ *    (Keeps names visible even if the HTML template lost the text.)
+ */
 document.addEventListener('DOMContentLoaded', () => {
-  const NAMES = [
+  const SINK_NAMES_IN_ORDER = [
     'Standard Kitchen Sink Undermount',
     'HandMade Kitchen Sink Undermount',
     'WorkStation Kitchen Sink Undermount',
@@ -537,27 +541,32 @@ document.addEventListener('DOMContentLoaded', () => {
     'Vessel Bathroom Sink'
   ];
 
-  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-  labels.forEach((lbl, i) => {
-    // find or create the <span> that holds the name
-    let span = lbl.querySelector('span');
-    const qty = lbl.querySelector('.sink-qty') || null;
-    if (!span) {
-      span = document.createElement('span');
-      lbl.insertBefore(span, qty); // put name before qty box
+  const boxes = document.querySelectorAll('.sink-addon');
+  boxes.forEach((box, i) => {
+    const lbl = box.closest('label') || box.parentElement;
+    if (!lbl) return;
+
+    // find/create the span that holds the text
+    let nameSpan = lbl.querySelector('span');
+    if (!nameSpan) {
+      nameSpan = document.createElement('span');
+      box.insertAdjacentElement('afterend', nameSpan);
     }
-    // if empty, inject the expected name (keeps layout working even if HTML lost text)
-    if (!span.textContent.trim()) {
-      span.textContent = NAMES[i] || 'Option';
+    // If span is empty, inject the expected text by order
+    if (!nameSpan.textContent.trim()) {
+      nameSpan.textContent = SINK_NAMES_IN_ORDER[i] || 'Option';
     }
-    // enforce visibility styles in case a global reset overrides CSS
-    span.style.flex = '1 1 auto';
-    span.style.maxWidth = '100%';
-    span.style.whiteSpace = 'nowrap';
-    span.style.overflow = 'hidden';
-    span.style.textOverflow = 'ellipsis';
-    span.style.display = 'block';
-    span.style.color = '#111827';
+
+    // inline safety styles
+    Object.assign(nameSpan.style, {
+      flex: '1 1 auto',
+      maxWidth: '100%',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      display: 'block',
+      color: '#111827',
+      fontSize: '1rem'
+    });
   });
 });
-
