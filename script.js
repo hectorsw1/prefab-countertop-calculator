@@ -137,7 +137,7 @@ function calculate() {
     const ptype = row.querySelector(".ptype")?.value || "Countertop";
     const refabLF = parseFloat(row.querySelector(".refab")?.value) || 0;
 
-    const sqft = (L * W) / 144; // NO waste added
+    const sqft = Math.ceil((L * W) / 144; // NO waste added
     let sinkCost = 0;
     if (sinkType === "kitchen_sink") sinkCost = 180;
     else if (sinkType === "bathroom_sink") sinkCost = 80;
