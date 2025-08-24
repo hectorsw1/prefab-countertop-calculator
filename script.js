@@ -29,47 +29,93 @@ const PREFAB = {
 // --- CONSTANTS ---
 const LABOR_RATE = 14;            // $/sqft
 const REFAB_RATE = 30;            // $/lf
-const ISLAND_SURCHARGE_L = 43;    // inches
-const ISLAND_SURCHARGE_W = 43;    // inches
+const ISLAND_SURCHARGE_L = 52;    // inches
+const ISLAND_SURCHARGE_W = 42;    // inches
 const ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };
 
-/* =========================================================================
-   OPTION B: Quantities only for sink add-ons (0–20 each).
-   - Each .sink-item has data-price
-   - Each .sink-qty is a number input (0–20). 0 means "not selected".
-   - Total add-on = sum(price * qty)
-   ========================================================================= */
-
-// REPLACE: getSinkAddonsTotal to read quantities instead of checkboxes
+// --- Sink add-ons: total (supports optional .sink-qty) ---
 function getSinkAddonsTotal() {
-  const items = document.querySelectorAll('#sink-options .sink-item');
+  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
   let sum = 0;
-  items.forEach(item => {
-    const price = Number(item.dataset.price || 0);
-    const qtyInput = item.querySelector('.sink-qty');
-    const qty = Math.min(20, Math.max(0, parseInt(qtyInput?.value || '0', 10)));
-    if (!isNaN(qty) && qty > 0) sum += price * qty;
+  labels.forEach(lbl => {
+    const box = lbl.querySelector('.sink-addon');
+    if (!box || !box.checked) return;
+    const price = Number(box.dataset.price || 0);
+    const qtyEl = lbl.querySelector('.sink-qty');
+    let qty = 1;
+    if (qtyEl && !qtyEl.hidden && !qtyEl.disabled) {
+      const v = parseInt(qtyEl.value || '1', 10);
+      qty = isNaN(v) || v < 1 ? 1 : v;
+    }
+    sum += price * qty;
   });
   return sum;
 }
 
-// Wire qty inputs to recalc totals and clamp 0–20
+// Wire checkbox ↔ qty + recalc
 document.addEventListener('DOMContentLoaded', () => {
-  const qtyInputs = document.querySelectorAll('#sink-options .sink-qty');
-  qtyInputs.forEach(input => {
-    const clamp = () => {
-      let v = parseInt(input.value || '0', 10);
-      if (isNaN(v) || v < 0) v = 0;
-      if (v > 20) v = 20;
-      input.value = String(v);
-    };
-    input.addEventListener('input', () => {
-      clamp();
-      if (typeof calculate === 'function') calculate();
-    });
-    input.addEventListener('blur', clamp);
+  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+
+  labels.forEach(lbl => {
+    const box = lbl.querySelector('.sink-addon');
+    const qty = lbl.querySelector('.sink-qty');
+
+    if (box && qty) {
+      const sync = () => {
+        const on = !!box.checked;
+        qty.hidden = !on;
+        qty.disabled = !on;
+        if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
+      };
+      sync();
+
+      box.addEventListener('change', () => {
+        sync();
+        if (typeof calculate === 'function') calculate();
+      });
+
+      qty.addEventListener('input', () => {
+        const v = parseInt(qty.value || '1', 10);
+        if (isNaN(v) || v < 1) qty.value = 1;
+        if (typeof calculate === 'function') calculate();
+      });
+
+      qty.addEventListener('blur', () => {
+        const v = parseInt(qty.value || '1', 10);
+        if (isNaN(v) || v < 1) qty.value = 1;
+      });
+    }
+
+    // ensure sink name span exists and is visible
+    let nameSpan = lbl.querySelector('.sink-name');
+    if (!nameSpan) {
+      nameSpan = document.createElement('span');
+      nameSpan.className = 'sink-name';
+      const refNode = lbl.querySelector('.sink-addon');
+      (refNode ? refNode : lbl).insertAdjacentElement('afterend', nameSpan);
+    }
+    if (!nameSpan.textContent.trim()) {
+      // fallback names by index if empty
+      const FALLBACK = [
+        'Standard Kitchen Sink Undermount',
+        'HandMade Kitchen Sink Undermount',
+        'WorkStation Kitchen Sink Undermount',
+        'Apron Kitchen Sink Undermount',
+        'Standard Bathroom Sink Undermount',
+        'Topmount Bathroom Sink',
+        'Vessel Bathroom Sink'
+      ];
+      const i = Array.from(labels).indexOf(lbl);
+      nameSpan.textContent = FALLBACK[i] || 'Option';
+    }
   });
+
+  // Also re-calc when any .sink-addon changes (no qty present)
+  const boxes = document.querySelectorAll('.sink-addon');
+  boxes.forEach(b => b.addEventListener('change', () => {
+    if (typeof calculate === 'function') calculate();
+  }));
 });
 
 // --- TABLE SETUP: generate 50 rows initially ---
@@ -122,7 +168,6 @@ function ensureRows(targetCount) {
 }
 
 // --- CALCULATION (NO WASTE) ---
-// --- CALCULATION (NO WASTE) ---
 function calculate() {
   const rows = document.querySelectorAll("#inputTable tbody tr");
 
@@ -142,7 +187,7 @@ function calculate() {
     const rawSqft = (L * W) / 144;
     const sqft = Math.ceil(rawSqft);
 
-    // Per-row sink cost (unchanged from your logic)
+    // Per-row sink cost (unchanged from original)
     let sinkCost = 0;
     if (sinkType === "kitchen_sink") sinkCost = 180;
     else if (sinkType === "bathroom_sink") sinkCost = 80;
@@ -159,19 +204,19 @@ function calculate() {
     const total = labor + extras;
 
     // Write per-row cells
-    row.querySelector(".sqft").innerText   = sqft.toFixed(0);  // whole number now
+    row.querySelector(".sqft").innerText   = sqft.toFixed(0);  // whole number
     row.querySelector(".labor").innerText  = labor.toFixed(2);
     row.querySelector(".extras").innerText = extras.toFixed(2);
     row.querySelector(".total").innerText  = total.toFixed(2);
 
-    // Accumulate totals
+    // Accumulate
     sumSqft  += sqft;
     sumLabor += labor;
     sumExtras += extras;
     sumTotal += total;
   });
 
-  // Project-level sink add-ons (from the checkbox/qty section)
+  // Project-level sink add-ons (from the optional sink section)
   const sinkAddons = (typeof getSinkAddonsTotal === 'function') ? getSinkAddonsTotal() : 0;
 
   // Totals footer
@@ -183,17 +228,6 @@ function calculate() {
   // Optional: show sink add-ons as its own line if #totalSinkAddons exists
   const sinkCell = document.getElementById("totalSinkAddons");
   if (sinkCell) sinkCell.innerText = sinkAddons.toFixed(2);
-}
-
-
-
-  // Add sink add-ons (qty-based) ONLY to final project total
-  const sinkAddons = getSinkAddonsTotal();
-
-  document.getElementById("totalSqft").innerText   = sumSqft.toFixed(2);
-  document.getElementById("totalLabor").innerText  = sumLabor.toFixed(2);
-  document.getElementById("totalExtras").innerText = sumExtras.toFixed(2);
-  document.getElementById("totalCost").innerText   = (sumTotal + sinkAddons).toFixed(2);
 }
 
 // --- OCR (Tesseract.js) ---
@@ -370,7 +404,6 @@ function suggestPieces() {
     let allowed = cat;
     const isMixLocked = (p.mat !== "Quartz") && p.group; // Granite/Marble/Quartzite with a group tag
     if (isMixLocked && groupPrefab[p.group]) {
-      // Filter to only the previously chosen prefab for this group
       const gp = groupPrefab[p.group]; // [L,W] normalized
       allowed = cat.filter(s => {
         const SL = Math.max(s[0], s[1]), SW = Math.min(s[0], s[1]);
