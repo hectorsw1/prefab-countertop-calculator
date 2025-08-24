@@ -28,47 +28,54 @@
     <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood Sheets</button>
   </section>
 
-  <!-- Sink Options (inside blue card) -->
-  <div id="sink-options">
-    <div class="section-title">Optional Sink Selections</div>
-    <div class="sink-grid">
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="180">
-        <span>Standard Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="455">
-        <span>HandMade Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="560">
-        <span>WorkStation Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="200">
-        <span>Apron Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="80">
-        <span>Standard Bathroom Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="40">
-        <span>Topmount Bathroom Sink</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="30">
-        <span>Vessel Bathroom Sink</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
-      </label>
-    </div>
+<!-- Sink Options (inside blue card) -->
+<div id="sink-options">
+  <div class="section-title">Optional Sink Selections</div>
+  <div class="sink-grid">
+    <label data-name="Standard Kitchen Sink Undermount">
+      <input type="checkbox" class="sink-addon" data-price="180">
+      <span>Standard Kitchen Sink Undermount</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
+
+    <label data-name="HandMade Kitchen Sink Undermount">
+      <input type="checkbox" class="sink-addon" data-price="455">
+      <span>HandMade Kitchen Sink Undermount</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
+
+    <label data-name="WorkStation Kitchen Sink Undermount">
+      <input type="checkbox" class="sink-addon" data-price="560">
+      <span>WorkStation Kitchen Sink Undermount</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
+
+    <label data-name="Apron Kitchen Sink Undermount">
+      <input type="checkbox" class="sink-addon" data-price="200">
+      <span>Apron Kitchen Sink Undermount</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
+
+    <label data-name="Standard Bathroom Sink Undermount">
+      <input type="checkbox" class="sink-addon" data-price="80">
+      <span>Standard Bathroom Sink Undermount</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
+
+    <label data-name="Topmount Bathroom Sink">
+      <input type="checkbox" class="sink-addon" data-price="40">
+      <span>Topmount Bathroom Sink</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
+
+    <label data-name="Vessel Bathroom Sink">
+      <input type="checkbox" class="sink-addon" data-price="30">
+      <span>Vessel Bathroom Sink</span>
+      <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+    </label>
   </div>
+</div>
+
 
   <!-- TABLE STARTS HERE -->
   <table id="inputTable">
