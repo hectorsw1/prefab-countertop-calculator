@@ -33,13 +33,6 @@ const ISLAND_SURCHARGE_L = 52;    // inches
 const ISLAND_SURCHARGE_W = 42;    // inches
 const ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };
-// === Sink add-ons helper (kept separate from line items) ===
-function getSinkAddonsTotal() {
-  const boxes = document.querySelectorAll('.sink-addon:checked');
-  let sum = 0;
-  boxes.forEach(b => { sum += Number(b.dataset.price || 0); });
-  return sum;
-}
 
 // Hook into your total calculator
 document.addEventListener('DOMContentLoaded', () => {
@@ -148,7 +141,6 @@ function calculate() {
   document.getElementById("totalExtras").innerText = sumExtras.toFixed(2);
   document.getElementById("totalCost").innerText  = sumTotal.toFixed(2);
 }
-grandTotal += getSinkAddonsTotal();
 
 // --- OCR (Tesseract.js) ---
 const imageInput = document.getElementById("imageInput");
