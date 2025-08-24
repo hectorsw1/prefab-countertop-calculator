@@ -190,4 +190,78 @@
     <tbody id="suggestBody"></tbody>
   </table>
 
-  <h2>Plywood Sheets (48×96 @ $70, m
+  <h2>Plywood Sheets (48×96 @ $70, minimized waste)</h2>
+  <div id="plySummary"></div>
+  <table id="plyTable">
+    <thead>
+      <tr>
+        <th>Sheet #</th>
+        <th>Cuts on Sheet</th>
+        <th>Leftover Areas</th>
+      </tr>
+    </thead>
+    <tbody id="plyBody"></tbody>
+  </table>
+
+  <!-- Tesseract.js -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- Sink qty logic -->
+  <script>
+    function getSinkAddonsTotal() {
+      const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+      let sum = 0;
+      labels.forEach(lbl => {
+        const box = lbl.querySelector('.sink-addon');
+        const price = Number(box?.dataset.price || 0);
+        const qtyInput = lbl.querySelector('.sink-qty');
+        if (box && box.checked) {
+          const qty = Math.max(1, parseInt(qtyInput?.value || '1', 10));
+          sum += price * qty;
+        }
+      });
+      return sum;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+      labels.forEach(lbl => {
+        const box = lbl.querySelector('.sink-addon');
+        const qty = lbl.querySelector('.sink-qty');
+
+        const syncQtyVisibility = () => {
+          const on = !!box.checked;
+          if (qty) {
+            qty.hidden = !on;
+            qty.disabled = !on;
+            if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
+          }
+        };
+
+        syncQtyVisibility();
+
+        if (box) {
+          box.addEventListener('change', () => {
+            syncQtyVisibility();
+            if (typeof calculate === 'function') calculate();
+          });
+        }
+        if (qty) {
+          qty.addEventListener('input', () => {
+            const v = parseInt(qty.value || '1', 10);
+            if (isNaN(v) || v < 1) qty.value = 1;
+            if (typeof calculate === 'function') calculate();
+          });
+          qty.addEventListener('blur', () => {
+            const v = parseInt(qty.value || '1', 10);
+            if (isNaN(v) || v < 1) qty.value = 1;
+          });
+        }
+      });
+    });
+  </script>
+
+  <!-- Your main logic -->
+  <script src="script.js"></script>
+</body>
+</html>
