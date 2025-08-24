@@ -129,53 +129,9 @@ section.controls > button {
   section.controls > button { min-width: 100%; }
   #sink-options .sink-grid { grid-template-columns: 1fr; grid-auto-rows: 48px; }
 }
-/* Rock‑solid sink label layout */
-#sink-options .sink-grid { grid-template-columns: repeat(3, minmax(260px, 1fr)); }
-#sink-options .sink-grid > label { display:inline-flex; align-items:center; gap:6px; min-width:0; white-space:nowrap; }
-#sink-options .sink-grid > label span { flex:1 1 auto; max-width:100%; overflow:hidden; text-overflow:ellipsis; display:block; }
-#sink-options .sink-grid > label input[type="checkbox"]{ appearance:auto; -webkit-appearance:checkbox; display:inline-block; margin:0; }
-#sink-options .sink-grid > label .sink-qty{ width:58px; height:30px; margin-left:6px; }
-@media (max-width:980px){ #sink-options .sink-grid{ grid-template-columns:repeat(2, minmax(240px,1fr)); } }
-@media (max-width:640px){ #sink-options .sink-grid{ grid-template-columns:1fr; } }
-/* --- Fix: ensure sink names are visible and can't collapse --- */
-#sink-options .sink-grid {
-  grid-template-columns: repeat(3, minmax(260px, 1fr)); /* roomy columns */
-}
 
-#sink-options .sink-grid > label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;              /* allow span to shrink, not disappear */
-  white-space: nowrap;       /* single line */
-}
-
+/* ===== FINAL HARDENING to avoid blank labels ===== */
 #sink-options .sink-grid > label span {
-  flex: 1 1 auto;            /* give the name real width */
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  color: #111827 !important; /* readable on the blue card */
-  font-size: 1rem;
+  color:#111827 !important;
+  display:block !important;
 }
-
-#sink-options .sink-grid > label input[type="checkbox"]{
-  appearance: auto;
-  -webkit-appearance: checkbox;
-  display: inline-block;
-  margin: 0;
-}
-
-#sink-options .sink-grid > label .sink-qty{
-  width: 58px;
-  height: 30px;
-  margin-left: 6px;
-}
-@media (max-width: 980px){
-  #sink-options .sink-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
-}
-@media (max-width: 640px){
-  #sink-options .sink-grid { grid-template-columns: 1fr; }
-}
-
