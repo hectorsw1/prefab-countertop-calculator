@@ -137,3 +137,45 @@ section.controls > button {
 #sink-options .sink-grid > label .sink-qty{ width:58px; height:30px; margin-left:6px; }
 @media (max-width:980px){ #sink-options .sink-grid{ grid-template-columns:repeat(2, minmax(240px,1fr)); } }
 @media (max-width:640px){ #sink-options .sink-grid{ grid-template-columns:1fr; } }
+/* --- Fix: ensure sink names are visible and can't collapse --- */
+#sink-options .sink-grid {
+  grid-template-columns: repeat(3, minmax(260px, 1fr)); /* roomy columns */
+}
+
+#sink-options .sink-grid > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;              /* allow span to shrink, not disappear */
+  white-space: nowrap;       /* single line */
+}
+
+#sink-options .sink-grid > label span {
+  flex: 1 1 auto;            /* give the name real width */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  color: #111827 !important; /* readable on the blue card */
+  font-size: 1rem;
+}
+
+#sink-options .sink-grid > label input[type="checkbox"]{
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  display: inline-block;
+  margin: 0;
+}
+
+#sink-options .sink-grid > label .sink-qty{
+  width: 58px;
+  height: 30px;
+  margin-left: 6px;
+}
+@media (max-width: 980px){
+  #sink-options .sink-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+}
+@media (max-width: 640px){
+  #sink-options .sink-grid { grid-template-columns: 1fr; }
+}
+
