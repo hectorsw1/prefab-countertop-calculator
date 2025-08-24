@@ -28,50 +28,44 @@
     <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood Sheets</button>
   </section>
 
-  <!-- Sink Options (inside blue card) -->
+  <!-- Sink Options (inside blue card) – Option B (quantity only, 0–20) -->
   <div id="sink-options">
     <div class="section-title">Optional Sink Selections</div>
+
     <div class="sink-grid">
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="180" />
+      <label class="sink-item" data-price="180" for="qty-kstd">
         <span class="sink-name">Standard Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-kstd" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="455" />
+      <label class="sink-item" data-price="455" for="qty-khand">
         <span class="sink-name">HandMade Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-khand" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="560" />
+      <label class="sink-item" data-price="560" for="qty-kws">
         <span class="sink-name">WorkStation Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-kws" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="200" />
+      <label class="sink-item" data-price="200" for="qty-kapron">
         <span class="sink-name">Apron Kitchen Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-kapron" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="80" />
+      <label class="sink-item" data-price="80" for="qty-bstd">
         <span class="sink-name">Standard Bathroom Sink Undermount</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-bstd" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="40" />
+      <label class="sink-item" data-price="40" for="qty-btop">
         <span class="sink-name">Topmount Bathroom Sink</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-btop" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="30" />
+      <label class="sink-item" data-price="30" for="qty-bves">
         <span class="sink-name">Vessel Bathroom Sink</span>
-        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden />
+        <input id="qty-bves" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
     </div>
   </div>
@@ -102,11 +96,6 @@
         <td id="totalLabor"></td>
         <td id="totalExtras"></td>
         <td id="totalCost"></td>
-      </tr>
-      <!-- NEW: shows the sink add‑ons dollar amount -->
-      <tr>
-        <td colspan="11" style="text-align:right;"><strong>Sink Add‑ons:</strong></td>
-        <td id="totalSinkAddons"></td>
       </tr>
     </tfoot>
   </table>
