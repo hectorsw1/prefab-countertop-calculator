@@ -527,8 +527,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * 3) Hard fix: inject sink names if they are missing/blank in HTML.
- *    (Keeps names visible even if the HTML template lost the text.)
+ * 3) Force-render sink names adjacent to each checkbox (bullet-proof).
+ *    Ensures a .sink-name span exists and contains the correct text.
  */
 document.addEventListener('DOMContentLoaded', () => {
   const SINK_NAMES_IN_ORDER = [
@@ -541,146 +541,22 @@ document.addEventListener('DOMContentLoaded', () => {
     'Vessel Bathroom Sink'
   ];
 
-  const boxes = document.querySelectorAll('.sink-addon');
-  boxes.forEach((box, i) => {
-    const lbl = box.closest('label') || box.parentElement;
-    if (!lbl) return;
+  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+  labels.forEach((lbl, i) => {
+    const expected = SINK_NAMES_IN_ORDER[i] || 'Option';
 
-    // find/create the span that holds the text
-    let nameSpan = lbl.querySelector('span');
+    // data-name for completeness (not required for visibility)
+    if (!lbl.getAttribute('data-name')) lbl.setAttribute('data-name', expected);
+
+    // ensure there’s a visible .sink-name span
+    let box = lbl.querySelector('.sink-addon');
+    let nameSpan = lbl.querySelector('.sink-name');
     if (!nameSpan) {
       nameSpan = document.createElement('span');
-      box.insertAdjacentElement('afterend', nameSpan);
+      nameSpan.className = 'sink-name';
+      if (box) box.insertAdjacentElement('afterend', nameSpan);
+      else lbl.prepend(nameSpan);
     }
-    // If span is empty, inject the expected text by order
-    if (!nameSpan.textContent.trim()) {
-      nameSpan.textContent = SINK_NAMES_IN_ORDER[i] || 'Option';
-    }
-
-    // inline safety styles
-    Object.assign(nameSpan.style, {
-      flex: '1 1 auto',
-      maxWidth: '100%',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      display: 'block',
-      color: '#111827',
-      fontSize: '1rem'
-    });
+    if (!nameSpan.textContent.trim()) nameSpan.textContent = expected;
   });
 });
-/* ===== Sink label hardening: set data-name + keep qty in sync ===== */
-(function robustSinkLabels(){
-  const NAMES = [
-    'Standard Kitchen Sink Undermount',
-    'HandMade Kitchen Sink Undermount',
-    'WorkStation Kitchen Sink Undermount',
-    'Apron Kitchen Sink Undermount',
-    'Standard Bathroom Sink Undermount',
-    'Topmount Bathroom Sink',
-    'Vessel Bathroom Sink'
-  ];
-
-  // Apply names to labels via data-name (CSS ::after will render them)
-  function applyNames() {
-    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-    labels.forEach((lbl, i) => {
-      if (!lbl.getAttribute('data-name')) {
-        lbl.setAttribute('data-name', NAMES[i] || 'Option');
-      }
-    });
-  }
-
-  // Show/hide qty next to its checkbox and recalc totals
-  function wireQty() {
-    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-    labels.forEach(lbl => {
-      const box = lbl.querySelector('.sink-addon');
-      const qty = lbl.querySelector('.sink-qty');
-      if (!box || !qty) return;
-
-      const sync = () => {
-        const on = !!box.checked;
-        qty.hidden = !on;
-        qty.disabled = !on;
-        if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
-      };
-      sync();
-
-      box.addEventListener('change', () => {
-        sync();
-        if (typeof calculate === 'function') calculate();
-      });
-      qty.addEventListener('input', () => {
-        const v = parseInt(qty.value || '1', 10);
-        if (isNaN(v) || v < 1) qty.value = 1;
-        if (typeof calculate === 'function') calculate();
-      });
-      qty.addEventListener('blur', () => {
-        const v = parseInt(qty.value || '1', 10);
-        if (isNaN(v) || v < 1) qty.value = 1;
-      });
-    });
-  }
-
-  // Run now, after DOM ready, and watch for late DOM changes (if any)
-  const run = () => { applyNames(); wireQty(); };
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', run);
-  } else {
-    run();
-  }
-
-  // MutationObserver in case your framework re-renders this section
-  const mo = new MutationObserver(() => run());
-  mo.observe(document.body, { subtree: true, childList: true });
-})();
-/* ===== Force-render sink names next to each checkbox (bullet-proof) ===== */
-(function forceShowSinkNames(){
-  const NAMES = [
-    'Standard Kitchen Sink Undermount',
-    'HandMade Kitchen Sink Undermount',
-    'WorkStation Kitchen Sink Undermount',
-    'Apron Kitchen Sink Undermount',
-    'Standard Bathroom Sink Undermount',
-    'Topmount Bathroom Sink',
-    'Vessel Bathroom Sink'
-  ];
-
-  function apply() {
-    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-    labels.forEach((lbl, i) => {
-      // add/update data-name (still used by your CSS ::after rule)
-      const name = NAMES[i] || 'Option';
-      if (lbl.getAttribute('data-name') !== name) lbl.setAttribute('data-name', name);
-
-      // ensure there's a visible span right after the checkbox
-      let box = lbl.querySelector('.sink-addon');
-      let nameSpan = lbl.querySelector('.sink-name');
-      if (!nameSpan) {
-        nameSpan = document.createElement('span');
-        nameSpan.className = 'sink-name';
-        if (box) box.insertAdjacentElement('afterend', nameSpan);
-        else lbl.prepend(nameSpan);
-      }
-      nameSpan.textContent = name;
-
-      // If a generic span exists, keep it visible as a fallback
-      const generic = lbl.querySelector('span:not(.sink-name)');
-      if (generic && !generic.textContent.trim()) {
-        generic.textContent = name;
-      }
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', apply);
-  } else {
-    apply();
-  }
-
-  // Re-apply if anything re-renders this section
-  const mo = new MutationObserver(apply);
-  mo.observe(document.getElementById('sink-options') || document.body, { childList:true, subtree:true });
-})();
