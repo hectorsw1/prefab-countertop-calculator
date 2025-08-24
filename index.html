@@ -5,72 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Prefab Countertop Calculator + OCR + Prefab & Plywood Suggestions</title>
 
-  <!-- Page-local styles: scoped so nothing else changes -->
+  <!-- Page-local styles: scoped to sink block so the rest of the app won't change -->
   <style>
-    /* ===== Buttons row in one line (wraps on small screens) ===== */
-    .controls {
-      display: flex;
-      gap: 10px;
-      align-items: stretch;
-      margin: 12px 0 6px;
-      flex-wrap: wrap;              /* wrap if viewport is narrow */
-    }
-    .controls > button {
-      flex: 1 1 0;                  /* make buttons share the row */
-      min-width: 220px;             /* prevents overly skinny buttons */
-    }
+    /* Equal-height rows for sink grid */
+    #sink-options { margin:14px 0; padding:14px 16px; border:1px solid #e5e7eb; border-radius:10px; }
 
-    /* ===== Sink box: modern card that matches app look ===== */
-    #sink-options {
-      margin: 10px 0 12px;
-      padding: 10px 14px;           /* tighter padding */
-      border-radius: 12px;
-      border: 1px solid #dbe3ff;    /* light blue border to echo buttons */
-      background: #f5f7ff;          /* subtle blue tint */
-      box-shadow: 0 1px 2px rgba(0,0,0,.04);
-    }
-    #sink-options .section-title {
-      font-weight: 600;
-      margin: 2px 0 8px;
-      color: #1f2a5a;
-      letter-spacing: .2px;
-    }
-
-    /* Grid layout with equal-height rows, compact spacing */
     .sink-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(240px, 1fr));
-      gap: 10px;                    /* tighter horizontal/vertical gap */
-      grid-auto-rows: 56px;         /* smaller vertical “patting” */
+      grid-template-columns: repeat(3, minmax(260px, 1fr));
+      gap: 16px;
+      grid-auto-rows: 72px;             /* equal height rows */
     }
 
-    /* Keep each option as a single flex item; small font inside only */
+    /* Force each label to remain a single item inside the grid */
     .sink-grid > label {
-      display: inline-flex !important;
-      align-items: flex-start;
-      gap: 8px;
+      display: inline-flex !important;  /* override any global label styles */
+      align-items: flex-start;          /* align checkbox with first line of text */
+      gap: 10px;
       height: 100%;
       line-height: 1.25;
-      font-size: 0.95rem;           /* slightly smaller text only here */
-      color: #222;
+      box-sizing: border-box;
     }
     .sink-grid > label input[type="checkbox"] {
-      margin-top: 2px;
+      margin-top: 2px;                  /* optical alignment with first text line */
       flex: 0 0 auto;
-      transform: scale(0.95);       /* visually a bit tighter */
     }
     .sink-grid > label span {
       display: block;
-      white-space: normal;
+      white-space: normal;              /* allow wrapping */
     }
 
-    /* Responsive: 2 cols on medium, 1 col on small; keep spacing comfy */
+    /* Responsive: 2 cols on medium, 1 col on small */
     @media (max-width: 1000px) {
-      .sink-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); grid-auto-rows: 60px; }
+      .sink-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); grid-auto-rows: 72px; }
     }
     @media (max-width: 640px) {
-      .controls > button { min-width: 100%; }   /* stack buttons on phones */
-      .sink-grid { grid-template-columns: 1fr; grid-auto-rows: 52px; }
+      .sink-grid { grid-template-columns: 1fr; grid-auto-rows: 56px; }
     }
   </style>
 
@@ -89,7 +59,6 @@
     </div>
   </section>
 
-  <!-- Buttons now share one line -->
   <section class="controls">
     <button id="calcBtn" onclick="calculate()">Calculate Totals</button>
     <button id="suggestBtn" onclick="suggestPieces()">Suggest Prefab Pieces</button>
@@ -98,7 +67,7 @@
 
   <!-- Sink Options (aligned + equal-height rows; grand total only) -->
   <div id="sink-options">
-    <div class="section-title">Optional Sink Selections</div>
+    <div style="font-weight:600; margin-bottom:8px;">Optional Sink Selections</div>
 
     <div class="sink-grid">
       <label>
