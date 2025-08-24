@@ -63,7 +63,7 @@ section.controls > button {
   background: #f5f7ff;
   box-shadow: 0 1px 2px rgba(0,0,0,.04);
   box-sizing: border-box;
-  overflow: hidden; /* keep everything inside */
+  overflow: hidden;
 }
 #sink-options .section-title {
   font-weight: 700;
@@ -72,7 +72,7 @@ section.controls > button {
   letter-spacing: .2px;
 }
 
-/* ===== Sink grid (single-line names, close to checkbox) ===== */
+/* ===== Sink grid (names on ONE line, next to qty) ===== */
 #sink-options .sink-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(260px, 1fr));
@@ -81,37 +81,26 @@ section.controls > button {
   grid-auto-rows: 48px;
   width: 100%;
 }
-#sink-options .sink-grid > label {
-  display: inline-flex;        /* checkbox + name + qty inline */
+#sink-options .sink-item {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;                    /* name closer to checkbox */
-  min-width: 0;                /* let inner span shrink */
+  gap: 10px;
+  min-width: 0;     /* allow text to shrink with ellipsis */
   height: 100%;
-  white-space: nowrap;         /* single line */
 }
-#sink-options .sink-grid > label input[type="checkbox"] {
-  appearance: auto;
-  -webkit-appearance: checkbox;
-  display: inline-block;
-  margin: 0;
-  flex: 0 0 auto;
-}
-#sink-options .sink-grid > label .sink-name {
+#sink-options .sink-item .sink-name {
   flex: 1 1 auto;
-  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;     /* truncate instead of wrap */
-  display: block;
+  text-overflow: ellipsis;
   color: #111827;
   font-size: 1rem;
 }
-
-/* ===== Qty input (shows only when selected; JS toggles hidden/disabled) ===== */
-#sink-options .sink-grid > label .sink-qty {
-  width: 58px;
-  height: 30px;
+#sink-options .sink-item .sink-qty {
+  width: 64px;
+  height: 32px;
   padding: 4px 6px;
-  margin-left: 6px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   font-size: 0.95rem;
