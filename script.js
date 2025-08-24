@@ -148,7 +148,17 @@ function calculate() {
   document.getElementById("totalExtras").innerText = sumExtras.toFixed(2);
   document.getElementById("totalCost").innerText  = sumTotal.toFixed(2);
 }
-grandTotal += getSinkAddonsTotal();
+function calculateTotals() {
+  // ... all your current math logic
+  
+  let grandTotal = materialTotal + laborTotal + extrasTotal;
+
+  // ✅ Add sink selections into the final figure only
+  grandTotal += getSinkAddonsTotal();
+
+  // render to UI
+  document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+}
 
 
 // --- OCR (Tesseract.js) ---
