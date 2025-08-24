@@ -570,3 +570,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+/* ===== Sink label hardening: set data-name + keep qty in sync ===== */
+(function robustSinkLabels(){
+  const NAMES = [
+    'Standard Kitchen Sink Undermount',
+    'HandMade Kitchen Sink Undermount',
+    'WorkStation Kitchen Sink Undermount',
+    'Apron Kitchen Sink Undermount',
+    'Standard Bathroom Sink Undermount',
+    'Topmount Bathroom Sink',
+    'Vessel Bathroom Sink'
+  ];
+
+  // Apply names to labels via data-name (CSS ::after will render them)
+  function applyNames() {
+    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+    labels.forEach((lbl, i) => {
+      if (!lbl.getAttribute('data-name')) {
+        lbl.setAttribute('data-name', NAMES[i] || 'Option');
+      }
+    });
+  }
+
+  // Show/hide qty next to its checkbox and recalc totals
+  function wireQty() {
+    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+    labels.forEach(lbl => {
+      const box = lbl.querySelector('.sink-addon');
+      const qty = lbl.querySelector('.sink-qty');
+      if (!box || !qty) return;
+
+      const sync = () => {
+        const on = !!box.checked;
+        qty.hidden = !on;
+        qty.disabled = !on;
+        if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
+      };
+      sync();
+
+      box.addEventListener('change', () => {
+        sync();
+        if (typeof calculate === 'function') calculate();
+      });
+      qty.addEventListener('input', () => {
+        const v = parseInt(qty.value || '1', 10);
+        if (isNaN(v) || v < 1) qty.value = 1;
+        if (typeof calculate === 'function') calculate();
+      });
+      qty.addEventListener('blur', () => {
+        const v = parseInt(qty.value || '1', 10);
+        if (isNaN(v) || v < 1) qty.value = 1;
+      });
+    });
+  }
+
+  // Run now, after DOM ready, and watch for late DOM changes (if any)
+  const run = () => { applyNames(); wireQty(); };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+
+  // MutationObserver in case your framework re-renders this section
+  const mo = new MutationObserver(() => run());
+  mo.observe(document.body, { subtree: true, childList: true });
+})();
