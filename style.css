@@ -134,3 +134,29 @@ section.controls > button {
   section.controls > button { min-width: 100%; }
   #sink-options .sink-grid { grid-template-columns: 1fr; grid-auto-rows: 48px; }
 }
+/* Fix: make sink names visible and ellipsized instead of collapsing */
+#sink-options .sink-grid > label {
+  display: inline-flex;         /* keep checkbox + text on one line */
+  align-items: center;
+  gap: 6px;
+  min-width: 0;                 /* allow children to shrink properly */
+}
+
+#sink-options .sink-grid > label span {
+  flex: 1 1 auto !important;    /* <-- give the name real width */
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  display: block !important;
+  color: #111827;               /* readable on the blue card */
+  font-size: 1rem;
+}
+
+/* Keep the native checkbox showing (in case a reset hides it) */
+#sink-options .sink-grid > label input[type="checkbox"]{
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  display: inline-block;
+  margin: 0;
+}
