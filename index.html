@@ -5,69 +5,95 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Prefab Countertop Calculator + OCR + Prefab & Plywood Suggestions</title>
 
-  <!-- Page-local styles: scoped so nothing else changes -->
- <style>
-  /* ===== Controls row (unchanged behavior) ===== */
-  .controls{
-    display:flex; gap:10px; align-items:stretch; margin:12px 0 6px; flex-wrap:wrap;
-  }
-  .controls>button{ flex:1 1 0; min-width:220px; }
+  <!-- Layout-only styles (safe: no function changes) -->
+  <style>
+    /* ===== General page rhythm ===== */
+    body { margin: 0; }
+    h1 { margin: 18px 0 10px; }
+    .uploader, .controls, #sink-options, table, h2 { margin-left: 26px; margin-right: 26px; }
 
-  /* ===== Sink box: keep within page and centered ===== */
-  #sink-options{
-    margin: 10px auto 12px;
-    padding: 12px 18px;                 /* a bit more left/right padding */
-    border-radius: 12px;
-    border: 1px solid #dbe3ff;
-    background: #f5f7ff;
-    box-shadow: 0 1px 2px rgba(0,0,0,.04);
-    max-width: calc(100% - 16px);       /* prevents touching page edges */
-    box-sizing: border-box;             /* include padding in width */
-  }
-  #sink-options .section-title{
-    font-weight:600; margin:2px 0 8px; color:#1f2a5a; letter-spacing:.2px;
-  }
+    /* ===== Uploader spacing ===== */
+    .uploader { margin-top: 6px; margin-bottom: 8px; }
+    .uploader h2 { margin: 10px 0 8px; }
 
-  /* ===== Grid: more forgiving column width, no overflow ===== */
-  .sink-grid{
-    display:grid;
-    grid-template-columns: repeat(3, minmax(300px, 1fr)); /* wider minimum so text doesn't wrap too aggressively */
-    column-gap: 20px;                                    /* a little more room between columns */
-    row-gap: 8px;                                        /* tighter vertical spacing */
-    grid-auto-rows: 58px;                                /* uniform row height */
-    width: 100%;
-  }
+    /* ===== Primary buttons row (3 on one line; wrap on small screens) ===== */
+    .controls{
+      display:flex;
+      gap:18px;                     /* corrected padding between buttons */
+      align-items:center;
+      justify-content:space-between;
+      margin: 14px 26px 10px;       /* top/right/bottom/left */
+      padding: 0;                   /* no extra padding in row container */
+      flex-wrap:wrap;
+    }
+    .controls > button{
+      flex: 1 1 0;
+      min-width: 260px;             /* keeps the three-pill layout */
+      padding: 14px 18px;           /* corrected button padding */
+      border-radius: 12px;          /* pill feel like screenshot */
+      font-weight: 700;
+    }
 
-  /* ===== Labels: keep checkbox + text together, closer spacing ===== */
-  .sink-grid>label{
-    display:inline-flex !important;      /* prevents splitting across grid cells */
-    align-items:center;                  /* centers vertically */
-    gap:6px;                             /* text closer to checkbox */
-    height:100%;
-    line-height:1.25;
-    font-size:0.95rem;
-    color:#222;
-    white-space:normal;                  /* allow wrapping */
-  }
-  .sink-grid>label input[type="checkbox"]{
-    margin:0;                            /* sit flush with text */
-    flex:0 0 auto;
-    transform:scale(0.95);
-  }
-  .sink-grid>label span{ display:block; }
+    /* ===== Sink box styled as a modern card, stays inside page ===== */
+    #sink-options{
+      margin: 14px 26px 16px;
+      padding: 12px 18px;           /* corrected inner padding */
+      border-radius: 12px;
+      border: 1px solid #dbe3ff;
+      background: #f5f7ff;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      box-sizing: border-box;
+    }
+    #sink-options .section-title{
+      font-weight: 700;
+      margin: 4px 0 12px;           /* header spacing */
+      color: #1f2a5a;
+      letter-spacing: .2px;
+    }
 
-  /* ===== Responsive ===== */
-  @media (max-width: 1200px){
-    .sink-grid{ grid-template-columns: repeat(3, minmax(260px,1fr)); }
-  }
-  @media (max-width: 1000px){
-    .sink-grid{ grid-template-columns: repeat(2, minmax(260px,1fr)); grid-auto-rows:60px; }
-  }
-  @media (max-width: 640px){
-    .controls>button{ min-width:100%; }  /* stack buttons on phones */
-    .sink-grid{ grid-template-columns: 1fr; grid-auto-rows:54px; }
-  }
-</style>
+    /* ===== Sink options grid (3 columns, even rows, tight spacing) ===== */
+    .sink-grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(300px, 1fr));
+      column-gap: 28px;             /* consistent with screenshot spacing */
+      row-gap: 10px;                /* vertical spacing between options */
+      grid-auto-rows: 48px;         /* equal height rows = clean lines */
+      width: 100%;
+    }
+    /* Keep checkbox + text together; bring text closer to box */
+    .sink-grid > label{
+      display:inline-flex !important;
+      align-items:center;
+      gap: 8px;                     /* text closer to checkbox */
+      height: 100%;
+      line-height: 1.25;
+      font-size: 1rem;              /* keep readable as requested */
+      color:#111827;
+      white-space: normal;
+    }
+    .sink-grid > label input[type="checkbox"]{
+      margin: 0;                    /* no weird gaps */
+      flex: 0 0 auto;
+      transform: scale(0.95);
+    }
+
+    /* ===== Tables section spacing ===== */
+    h2 { margin: 18px 26px 8px; }
+
+    /* ===== Responsive tweaks ===== */
+    @media (max-width: 1180px){
+      .controls > button { min-width: 240px; }
+      .sink-grid{ grid-template-columns: repeat(3, minmax(260px,1fr)); }
+    }
+    @media (max-width: 980px){
+      .controls > button { min-width: 280px; } /* becomes 2 per row */
+      .sink-grid{ grid-template-columns: repeat(2, minmax(280px,1fr)); grid-auto-rows: 52px; }
+    }
+    @media (max-width: 640px){
+      .controls > button { min-width: 100%; }  /* stack buttons */
+      .sink-grid{ grid-template-columns: 1fr; grid-auto-rows: 50px; }
+    }
+  </style>
 
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -84,56 +110,28 @@
     </div>
   </section>
 
-  <!-- Buttons now share one line -->
+  <!-- Three primary actions in one row -->
   <section class="controls">
     <button id="calcBtn" onclick="calculate()">Calculate Totals</button>
     <button id="suggestBtn" onclick="suggestPieces()">Suggest Prefab Pieces</button>
     <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood Sheets</button>
   </section>
 
-  <!-- Sink Options (aligned + equal-height rows; grand total only) -->
+  <!-- Sink Options (grand total only; no function changes) -->
   <div id="sink-options">
     <div class="section-title">Optional Sink Selections</div>
-
     <div class="sink-grid">
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="180">
-        <span>Standard Kitchen Sink Undermount</span>
-      </label>
-
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="455">
-        <span>HandMade Kitchen Sink Undermount</span>
-      </label>
-
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="560">
-        <span>WorkStation Kitchen Sink Undermount</span>
-      </label>
-
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="200">
-        <span>Apron Kitchen Sink Undermount</span>
-      </label>
-
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="80">
-        <span>Standard Bathroom Sink Undermount</span>
-      </label>
-
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="40">
-        <span>Topmount Bathroom Sink</span>
-      </label>
-
-      <label>
-        <input type="checkbox" class="sink-addon" data-price="30">
-        <span>Vessel Bathroom Sink</span>
-      </label>
+      <label><input type="checkbox" class="sink-addon" data-price="180"><span>Standard Kitchen Sink Undermount</span></label>
+      <label><input type="checkbox" class="sink-addon" data-price="455"><span>HandMade Kitchen Sink Undermount</span></label>
+      <label><input type="checkbox" class="sink-addon" data-price="560"><span>WorkStation Kitchen Sink Undermount</span></label>
+      <label><input type="checkbox" class="sink-addon" data-price="200"><span>Apron Kitchen Sink Undermount</span></label>
+      <label><input type="checkbox" class="sink-addon" data-price="80"><span>Standard Bathroom Sink Undermount</span></label>
+      <label><input type="checkbox" class="sink-addon" data-price="40"><span>Topmount Bathroom Sink</span></label>
+      <label><input type="checkbox" class="sink-addon" data-price="30"><span>Vessel Bathroom Sink</span></label>
     </div>
   </div>
 
-  <!-- TABLE STARTS HERE -->
+  <!-- TABLE STARTS HERE (unchanged) -->
   <table id="inputTable">
     <thead>
       <tr>
@@ -151,12 +149,10 @@
         <th>Total ($)</th>
       </tr>
     </thead>
-    <tbody id="tableBody">
-      <!-- JS inserts rows here -->
-    </tbody>
+    <tbody id="tableBody"></tbody>
     <tfoot>
       <tr>
-        <td colspan="8" style="text-align: right;"><strong>Totals:</strong></td>
+        <td colspan="8" style="text-align:right;"><strong>Totals:</strong></td>
         <td id="totalSqft"></td>
         <td id="totalLabor"></td>
         <td id="totalExtras"></td>
