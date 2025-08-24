@@ -24,7 +24,21 @@
     <button id="suggestBtn" onclick="suggestPieces()">Suggest Prefab Pieces</button>
     <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood Sheets</button>
   </section>
+<!-- Sink Options (added to final total only; not itemized) -->
+<div id="sink-options" style="margin: 14px 0; padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 10px;">
+  <div style="font-weight:600; margin-bottom:8px;">Optional Sink Selections</div>
+  <div class="sink-grid" style="display:grid; grid-template-columns:repeat(3,minmax(220px,1fr)); gap:10px;">
+    <label><input type="checkbox" class="sink-addon" data-price="180"> Standard Kitchen Sink Undermount</label>
+    <label><input type="checkbox" class="sink-addon" data-price="455"> HandMade Kitchen Sink Undermount</label>
+    <label><input type="checkbox" class="sink-addon" data-price="560"> WorkStation Kitchen Sink Undermount</label>
+    <label><input type="checkbox" class="sink-addon" data-price="200"> Apron Kitchen Sink Undermount</label>
+    <label><input type="checkbox" class="sink-addon" data-price="80"> Standard Bathroom Sink Undermount</label>
+    <label><input type="checkbox" class="sink-addon" data-price="40"> Topmount Bathroom Sink</label>
+    <label><input type="checkbox" class="sink-addon" data-price="30"> Vessel Bathroom Sink</label>
+  </div>
+</div>
 
+<!-- TABLE STARTS HERE -->
   <table id="inputTable">
     <thead>
       <tr>
