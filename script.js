@@ -451,3 +451,80 @@ function suggestPlywood() {
   const cost = sheetCount * PLY_SHEET.COST;
   plySummary.textContent = `Sheets used: ${sheetCount} × $${PLY_SHEET.COST} = $${cost.toFixed(2)}`;
 }
+
+
+/* =========================
+   ADDITIONS (non-breaking)
+   ========================= */
+
+/**
+ * 1) Upgrade getSinkAddonsTotal to support quantities IF .sink-qty exists.
+ *    We don't edit the original function; instead we wrap/override it here.
+ */
+(function enhanceSinkAddonTotalsWithQty(){
+  if (typeof getSinkAddonsTotal !== 'function') return;
+  const original = getSinkAddonsTotal;
+
+  window.getSinkAddonsTotal = function(){
+    // If quantity inputs exist inside #sink-options, use price * qty.
+    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+    if (labels && labels.length) {
+      let sum = 0;
+      labels.forEach(lbl => {
+        const box = lbl.querySelector('.sink-addon');
+        const qtyInput = lbl.querySelector('.sink-qty');
+        const price = Number(box?.dataset.price || 0);
+        if (box && box.checked) {
+          let qty = 1;
+          if (qtyInput) {
+            const v = parseInt(qtyInput.value || '1', 10);
+            qty = isNaN(v) || v < 1 ? 1 : v;
+          }
+          sum += price * qty;
+        }
+      });
+      return sum;
+    }
+    // Fallback to your original behavior (no qty present)
+    return original();
+  };
+})();
+
+/**
+ * 2) Show/hide .sink-qty next to each checkbox, and recalc on changes.
+ *    This is additive; your existing listeners remain untouched.
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+  labels.forEach(lbl => {
+    const box = lbl.querySelector('.sink-addon');
+    const qty = lbl.querySelector('.sink-qty');
+    if (!box || !qty) return;
+
+    const syncQtyVisibility = () => {
+      const on = !!box.checked;
+      qty.hidden = !on;
+      qty.disabled = !on;
+      if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
+    };
+
+    // init
+    syncQtyVisibility();
+
+    box.addEventListener('change', () => {
+      syncQtyVisibility();
+      if (typeof calculate === 'function') calculate();
+    });
+
+    qty.addEventListener('input', () => {
+      const v = parseInt(qty.value || '1', 10);
+      if (isNaN(v) || v < 1) qty.value = 1;
+      if (typeof calculate === 'function') calculate();
+    });
+
+    qty.addEventListener('blur', () => {
+      const v = parseInt(qty.value || '1', 10);
+      if (isNaN(v) || v < 1) qty.value = 1;
+    });
+  });
+});
