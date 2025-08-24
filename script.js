@@ -458,15 +458,14 @@ function suggestPlywood() {
    ========================= */
 
 /**
- * 1) Upgrade getSinkAddonsTotal to support quantities IF .sink-qty exists.
- *    We don't edit the original function; instead we wrap/override it here.
+ * 1) Enhance getSinkAddonsTotal to support quantities IF .sink-qty exists.
+ *    (No change to your original logic when qty fields are absent.)
  */
 (function enhanceSinkAddonTotalsWithQty(){
   if (typeof getSinkAddonsTotal !== 'function') return;
   const original = getSinkAddonsTotal;
 
   window.getSinkAddonsTotal = function(){
-    // If quantity inputs exist inside #sink-options, use price * qty.
     const labels = document.querySelectorAll('#sink-options .sink-grid > label');
     if (labels && labels.length) {
       let sum = 0;
@@ -485,14 +484,12 @@ function suggestPlywood() {
       });
       return sum;
     }
-    // Fallback to your original behavior (no qty present)
     return original();
   };
 })();
 
 /**
  * 2) Show/hide .sink-qty next to each checkbox, and recalc on changes.
- *    This is additive; your existing listeners remain untouched.
  */
 document.addEventListener('DOMContentLoaded', () => {
   const labels = document.querySelectorAll('#sink-options .sink-grid > label');
