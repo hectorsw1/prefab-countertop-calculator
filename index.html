@@ -7,108 +7,6 @@
 
   <!-- Base stylesheet -->
   <link rel="stylesheet" href="style.css" />
-
-  <!-- ✅ Overrides and sink qty styles -->
-  <style>
-    /* ===== Buttons row ===== */
-    section.controls {
-      display: grid !important;
-      grid-template-columns: repeat(3, minmax(260px, 1fr)) !important;
-      gap: 18px !important;
-      align-items: center !important;
-      justify-content: center !important;
-      margin: 14px 26px 10px !important;
-      padding: 0 !important;
-    }
-    section.controls > button {
-      width: 100% !important;
-      border-radius: 12px !important;
-      padding: 14px 18px !important;
-      font-weight: 700 !important;
-      display: inline-block !important;
-      box-shadow: 0 1px 2px rgba(0,0,0,.04) !important;
-    }
-
-    /* ===== Sink card ===== */
-    #sink-options {
-      margin: 14px 26px 16px !important;
-      padding: 12px 18px !important;
-      border-radius: 12px !important;
-      border: 1px solid #dbe3ff !important;
-      background: #f5f7ff !important;
-      box-shadow: 0 1px 2px rgba(0,0,0,.04) !important;
-      box-sizing: border-box !important;
-      max-width: calc(100% - 52px) !important;
-      overflow: hidden !important;
-    }
-    #sink-options .section-title {
-      font-weight: 700 !important;
-      margin: 4px 0 12px !important;
-      color: #1f2a5a !important;
-      letter-spacing: .2px !important;
-    }
-
-    /* ===== Sink grid ===== */
-    #sink-options .sink-grid {
-      display: grid !important;
-      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-      column-gap: 18px !important;
-      row-gap: 8px !important;
-      grid-auto-rows: 48px !important;
-      width: 100% !important;
-    }
-    #sink-options .sink-grid > label {
-      display: inline-flex !important;
-      align-items: center !important;
-      gap: 6px !important;
-      min-width: 0 !important;
-      height: 100% !important;
-      line-height: 1.25 !important;
-      white-space: nowrap !important;
-    }
-    #sink-options .sink-grid > label input[type="checkbox"] {
-      appearance: auto !important;
-      -webkit-appearance: checkbox !important;
-      display: inline-block !important;
-      opacity: 1 !important;
-      margin: 0 !important;
-      flex: 0 0 auto !important;
-    }
-    #sink-options .sink-grid > label span {
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-      display: block !important;
-      min-width: 0 !important;
-      color: #111827 !important;
-      font-size: 1rem !important;
-    }
-
-    /* ===== Qty input (hidden until selected) ===== */
-    #sink-options .sink-grid > label .sink-qty {
-      width: 58px;
-      height: 30px;
-      padding: 4px 6px;
-      margin-left: 6px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      background: #fff;
-      box-sizing: border-box;
-    }
-
-    /* ===== Responsive ===== */
-    @media (max-width: 980px){
-      section.controls { grid-template-columns: repeat(2, minmax(280px,1fr)) !important; }
-      #sink-options .sink-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; grid-auto-rows: 50px !important; }
-    }
-    @media (max-width: 640px){
-      section.controls { grid-template-columns: 1fr !important; }
-      section.controls > button { min-width: 100% !important; }
-      #sink-options { margin-left: 16px !important; margin-right: 16px !important; max-width: calc(100% - 32px) !important; }
-      #sink-options .sink-grid { grid-template-columns: 1fr !important; grid-auto-rows: 48px !important; }
-    }
-  </style>
 </head>
 <body>
   <h1>Prefab Countertop Calculator</h1>
@@ -116,7 +14,7 @@
   <section class="uploader">
     <h2>Sketch Upload (Draw → Quote)</h2>
     <input type="file" id="imageInput" accept="image/*" />
-    <button id="runOcrBtn">Run OCR & Auto-Fill</button>
+    <button id="runOcrBtn">Run OCR & Auto‑Fill</button>
     <div id="ocrStatus"></div>
     <div class="preview">
       <img id="previewImg" alt="Sketch preview" />
@@ -130,21 +28,49 @@
     <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood Sheets</button>
   </section>
 
-  <!-- Sink Options with qty -->
+  <!-- Sink Options (inside blue card) -->
   <div id="sink-options">
     <div class="section-title">Optional Sink Selections</div>
     <div class="sink-grid">
-      <label><input type="checkbox" class="sink-addon" data-price="180"><span>Standard Kitchen Sink Undermount</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
-      <label><input type="checkbox" class="sink-addon" data-price="455"><span>HandMade Kitchen Sink Undermount</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
-      <label><input type="checkbox" class="sink-addon" data-price="560"><span>WorkStation Kitchen Sink Undermount</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
-      <label><input type="checkbox" class="sink-addon" data-price="200"><span>Apron Kitchen Sink Undermount</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
-      <label><input type="checkbox" class="sink-addon" data-price="80"><span>Standard Bathroom Sink Undermount</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
-      <label><input type="checkbox" class="sink-addon" data-price="40"><span>Topmount Bathroom Sink</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
-      <label><input type="checkbox" class="sink-addon" data-price="30"><span>Vessel Bathroom Sink</span><input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden></label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="180">
+        <span>Standard Kitchen Sink Undermount</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="455">
+        <span>HandMade Kitchen Sink Undermount</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="560">
+        <span>WorkStation Kitchen Sink Undermount</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="200">
+        <span>Apron Kitchen Sink Undermount</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="80">
+        <span>Standard Bathroom Sink Undermount</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="40">
+        <span>Topmount Bathroom Sink</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
+      <label>
+        <input type="checkbox" class="sink-addon" data-price="30">
+        <span>Vessel Bathroom Sink</span>
+        <input type="number" class="sink-qty" min="1" step="1" value="1" disabled hidden>
+      </label>
     </div>
   </div>
 
-  <!-- TABLE STARTS HERE (unchanged) -->
+  <!-- TABLE STARTS HERE -->
   <table id="inputTable">
     <thead>
       <tr>
@@ -205,63 +131,7 @@
 
   <!-- Tesseract.js -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-  <!-- Sink qty logic -->
-  <script>
-    function getSinkAddonsTotal() {
-      const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-      let sum = 0;
-      labels.forEach(lbl => {
-        const box = lbl.querySelector('.sink-addon');
-        const price = Number(box?.dataset.price || 0);
-        const qtyInput = lbl.querySelector('.sink-qty');
-        if (box && box.checked) {
-          const qty = Math.max(1, parseInt(qtyInput?.value || '1', 10));
-          sum += price * qty;
-        }
-      });
-      return sum;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-      labels.forEach(lbl => {
-        const box = lbl.querySelector('.sink-addon');
-        const qty = lbl.querySelector('.sink-qty');
-
-        const syncQtyVisibility = () => {
-          const on = !!box.checked;
-          if (qty) {
-            qty.hidden = !on;
-            qty.disabled = !on;
-            if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
-          }
-        };
-
-        syncQtyVisibility();
-
-        if (box) {
-          box.addEventListener('change', () => {
-            syncQtyVisibility();
-            if (typeof calculate === 'function') calculate();
-          });
-        }
-        if (qty) {
-          qty.addEventListener('input', () => {
-            const v = parseInt(qty.value || '1', 10);
-            if (isNaN(v) || v < 1) qty.value = 1;
-            if (typeof calculate === 'function') calculate();
-          });
-          qty.addEventListener('blur', () => {
-            const v = parseInt(qty.value || '1', 10);
-            if (isNaN(v) || v < 1) qty.value = 1;
-          });
-        }
-      });
-    });
-  </script>
-
-  <!-- Your main logic -->
+  <!-- App JS -->
   <script src="script.js"></script>
 </body>
 </html>
