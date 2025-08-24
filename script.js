@@ -122,6 +122,7 @@ function ensureRows(targetCount) {
 }
 
 // --- CALCULATION (NO WASTE) ---
+// --- CALCULATION (NO WASTE) ---
 function calculate() {
   const rows = document.querySelectorAll("#inputTable tbody tr");
 
@@ -131,22 +132,59 @@ function calculate() {
   let sumTotal = 0;
 
   rows.forEach(row => {
-    // ... your per-row calculations ...
+    const L = parseFloat(row.querySelector(".length")?.value) || 0;
+    const W = parseFloat(row.querySelector(".width")?.value)  || 0;
+    const sinkType = row.querySelector(".sink")?.value || "";
+    const ptype = row.querySelector(".ptype")?.value || "Countertop";
+    const refabLF = parseFloat(row.querySelector(".refab")?.value) || 0;
+
+    // Round UP sqft per-piece
+    const rawSqft = (L * W) / 144;
+    const sqft = Math.ceil(rawSqft);
+
+    // Per-row sink cost (unchanged from your logic)
+    let sinkCost = 0;
+    if (sinkType === "kitchen_sink") sinkCost = 180;
+    else if (sinkType === "bathroom_sink") sinkCost = 80;
+    else if (sinkType === "bar_sink") sinkCost = 80;
+
+    const labor = sqft * LABOR_RATE;
+    let extras = sinkCost + refabLF * REFAB_RATE;
+
+    // Island surcharge if both dimensions exceed thresholds
+    if (ptype === "Island" && L >= ISLAND_SURCHARGE_L && W >= ISLAND_SURCHARGE_W) {
+      extras += ISLAND_SURCHARGE_COST;
+    }
+
+    const total = labor + extras;
+
+    // Write per-row cells
+    row.querySelector(".sqft").innerText   = sqft.toFixed(0);  // whole number now
+    row.querySelector(".labor").innerText  = labor.toFixed(2);
+    row.querySelector(".extras").innerText = extras.toFixed(2);
+    row.querySelector(".total").innerText  = total.toFixed(2);
+
+    // Accumulate totals
+    sumSqft  += sqft;
+    sumLabor += labor;
+    sumExtras += extras;
+    sumTotal += total;
   });
 
-  // --- NEW: add sink add-ons ONLY to final project total ---
-  const sinkAddons = getSinkAddonsTotal();
+  // Project-level sink add-ons (from the checkbox/qty section)
+  const sinkAddons = (typeof getSinkAddonsTotal === 'function') ? getSinkAddonsTotal() : 0;
 
-  // update totals
-  document.getElementById("totalSqft").innerText   = sumSqft.toFixed(2);
+  // Totals footer
+  document.getElementById("totalSqft").innerText   = sumSqft.toFixed(0);
   document.getElementById("totalLabor").innerText  = sumLabor.toFixed(2);
   document.getElementById("totalExtras").innerText = sumExtras.toFixed(2);
   document.getElementById("totalCost").innerText   = (sumTotal + sinkAddons).toFixed(2);
 
-  // 👇 ADD THIS here to show sink add-ons separately
-  const sinkCell = document.getElementById('totalSinkAddons');
+  // Optional: show sink add-ons as its own line if #totalSinkAddons exists
+  const sinkCell = document.getElementById("totalSinkAddons");
   if (sinkCell) sinkCell.innerText = sinkAddons.toFixed(2);
 }
+
 
 
   // Add sink add-ons (qty-based) ONLY to final project total
