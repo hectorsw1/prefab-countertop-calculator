@@ -525,3 +525,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+/* ===== Safety net: ensure sink label names are present & visible ===== */
+document.addEventListener('DOMContentLoaded', () => {
+  const NAMES = [
+    'Standard Kitchen Sink Undermount',
+    'HandMade Kitchen Sink Undermount',
+    'WorkStation Kitchen Sink Undermount',
+    'Apron Kitchen Sink Undermount',
+    'Standard Bathroom Sink Undermount',
+    'Topmount Bathroom Sink',
+    'Vessel Bathroom Sink'
+  ];
+
+  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+  labels.forEach((lbl, i) => {
+    // find or create the <span> that holds the name
+    let span = lbl.querySelector('span');
+    const qty = lbl.querySelector('.sink-qty') || null;
+    if (!span) {
+      span = document.createElement('span');
+      lbl.insertBefore(span, qty); // put name before qty box
+    }
+    // if empty, inject the expected name (keeps layout working even if HTML lost text)
+    if (!span.textContent.trim()) {
+      span.textContent = NAMES[i] || 'Option';
+    }
+    // enforce visibility styles in case a global reset overrides CSS
+    span.style.flex = '1 1 auto';
+    span.style.maxWidth = '100%';
+    span.style.whiteSpace = 'nowrap';
+    span.style.overflow = 'hidden';
+    span.style.textOverflow = 'ellipsis';
+    span.style.display = 'block';
+    span.style.color = '#111827';
+  });
+});
+
