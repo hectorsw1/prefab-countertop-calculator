@@ -636,3 +636,51 @@ document.addEventListener('DOMContentLoaded', () => {
   const mo = new MutationObserver(() => run());
   mo.observe(document.body, { subtree: true, childList: true });
 })();
+/* ===== Force-render sink names next to each checkbox (bullet-proof) ===== */
+(function forceShowSinkNames(){
+  const NAMES = [
+    'Standard Kitchen Sink Undermount',
+    'HandMade Kitchen Sink Undermount',
+    'WorkStation Kitchen Sink Undermount',
+    'Apron Kitchen Sink Undermount',
+    'Standard Bathroom Sink Undermount',
+    'Topmount Bathroom Sink',
+    'Vessel Bathroom Sink'
+  ];
+
+  function apply() {
+    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
+    labels.forEach((lbl, i) => {
+      // add/update data-name (still used by your CSS ::after rule)
+      const name = NAMES[i] || 'Option';
+      if (lbl.getAttribute('data-name') !== name) lbl.setAttribute('data-name', name);
+
+      // ensure there's a visible span right after the checkbox
+      let box = lbl.querySelector('.sink-addon');
+      let nameSpan = lbl.querySelector('.sink-name');
+      if (!nameSpan) {
+        nameSpan = document.createElement('span');
+        nameSpan.className = 'sink-name';
+        if (box) box.insertAdjacentElement('afterend', nameSpan);
+        else lbl.prepend(nameSpan);
+      }
+      nameSpan.textContent = name;
+
+      // If a generic span exists, keep it visible as a fallback
+      const generic = lbl.querySelector('span:not(.sink-name)');
+      if (generic && !generic.textContent.trim()) {
+        generic.textContent = name;
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    apply();
+  }
+
+  // Re-apply if anything re-renders this section
+  const mo = new MutationObserver(apply);
+  mo.observe(document.getElementById('sink-options') || document.body, { childList:true, subtree:true });
+})();
