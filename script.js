@@ -34,21 +34,41 @@ const ISLAND_SURCHARGE_W = 42;    // inches
 const ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };
 
-// --- NEW: Sink add-ons helper (adds to grand total only; not itemized) ---
+/* =========================================================================
+   OPTION B: Quantities only for sink add-ons (0–20 each).
+   - Each .sink-item has data-price
+   - Each .sink-qty is a number input (0–20). 0 means "not selected".
+   - Total add-on = sum(price * qty)
+   ========================================================================= */
+
+// REPLACE: getSinkAddonsTotal to read quantities instead of checkboxes
 function getSinkAddonsTotal() {
-  const boxes = document.querySelectorAll('.sink-addon:checked');
+  const items = document.querySelectorAll('#sink-options .sink-item');
   let sum = 0;
-  boxes.forEach(b => { sum += Number(b.dataset.price || 0); });
+  items.forEach(item => {
+    const price = Number(item.dataset.price || 0);
+    const qtyInput = item.querySelector('.sink-qty');
+    const qty = Math.min(20, Math.max(0, parseInt(qtyInput?.value || '0', 10)));
+    if (!isNaN(qty) && qty > 0) sum += price * qty;
+  });
   return sum;
 }
 
-// Hook into your total calculator
+// Wire qty inputs to recalc totals and clamp 0–20
 document.addEventListener('DOMContentLoaded', () => {
-  const boxes = document.querySelectorAll('.sink-addon');
-  boxes.forEach(b => {
-    b.addEventListener('change', () => {
-      if (typeof calculate === 'function') calculate(); // call your totals function
+  const qtyInputs = document.querySelectorAll('#sink-options .sink-qty');
+  qtyInputs.forEach(input => {
+    const clamp = () => {
+      let v = parseInt(input.value || '0', 10);
+      if (isNaN(v) || v < 0) v = 0;
+      if (v > 20) v = 20;
+      input.value = String(v);
+    };
+    input.addEventListener('input', () => {
+      clamp();
+      if (typeof calculate === 'function') calculate();
     });
+    input.addEventListener('blur', clamp);
   });
 });
 
@@ -144,7 +164,7 @@ function calculate() {
     sumTotal += total;
   });
 
-  // --- NEW: add sink add-ons ONLY to final project total (not to per-row extras) ---
+  // Add sink add-ons (qty-based) ONLY to final project total
   const sinkAddons = getSinkAddonsTotal();
 
   document.getElementById("totalSqft").innerText   = sumSqft.toFixed(2);
@@ -451,112 +471,3 @@ function suggestPlywood() {
   const cost = sheetCount * PLY_SHEET.COST;
   plySummary.textContent = `Sheets used: ${sheetCount} × $${PLY_SHEET.COST} = $${cost.toFixed(2)}`;
 }
-
-
-/* =========================
-   ADDITIONS (non-breaking)
-   ========================= */
-
-/**
- * 1) Enhance getSinkAddonsTotal to support quantities IF .sink-qty exists.
- *    (No change to your original logic when qty fields are absent.)
- */
-(function enhanceSinkAddonTotalsWithQty(){
-  if (typeof getSinkAddonsTotal !== 'function') return;
-  const original = getSinkAddonsTotal;
-
-  window.getSinkAddonsTotal = function(){
-    const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-    if (labels && labels.length) {
-      let sum = 0;
-      labels.forEach(lbl => {
-        const box = lbl.querySelector('.sink-addon');
-        const qtyInput = lbl.querySelector('.sink-qty');
-        const price = Number(box?.dataset.price || 0);
-        if (box && box.checked) {
-          let qty = 1;
-          if (qtyInput) {
-            const v = parseInt(qtyInput.value || '1', 10);
-            qty = isNaN(v) || v < 1 ? 1 : v;
-          }
-          sum += price * qty;
-        }
-      });
-      return sum;
-    }
-    return original();
-  };
-})();
-
-/**
- * 2) Show/hide .sink-qty next to each checkbox, and recalc on changes.
- */
-document.addEventListener('DOMContentLoaded', () => {
-  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-  labels.forEach(lbl => {
-    const box = lbl.querySelector('.sink-addon');
-    const qty = lbl.querySelector('.sink-qty');
-    if (!box || !qty) return;
-
-    const syncQtyVisibility = () => {
-      const on = !!box.checked;
-      qty.hidden = !on;
-      qty.disabled = !on;
-      if (on && (!qty.value || Number(qty.value) < 1)) qty.value = 1;
-    };
-
-    // init
-    syncQtyVisibility();
-
-    box.addEventListener('change', () => {
-      syncQtyVisibility();
-      if (typeof calculate === 'function') calculate();
-    });
-
-    qty.addEventListener('input', () => {
-      const v = parseInt(qty.value || '1', 10);
-      if (isNaN(v) || v < 1) qty.value = 1;
-      if (typeof calculate === 'function') calculate();
-    });
-
-    qty.addEventListener('blur', () => {
-      const v = parseInt(qty.value || '1', 10);
-      if (isNaN(v) || v < 1) qty.value = 1;
-    });
-  });
-});
-
-/**
- * 3) Force-render sink names adjacent to each checkbox (bullet-proof).
- *    Ensures a .sink-name span exists and contains the correct text.
- */
-document.addEventListener('DOMContentLoaded', () => {
-  const SINK_NAMES_IN_ORDER = [
-    'Standard Kitchen Sink Undermount',
-    'HandMade Kitchen Sink Undermount',
-    'WorkStation Kitchen Sink Undermount',
-    'Apron Kitchen Sink Undermount',
-    'Standard Bathroom Sink Undermount',
-    'Topmount Bathroom Sink',
-    'Vessel Bathroom Sink'
-  ];
-
-  const labels = document.querySelectorAll('#sink-options .sink-grid > label');
-  labels.forEach((lbl, i) => {
-    const expected = SINK_NAMES_IN_ORDER[i] || 'Option';
-
-    // data-name for completeness (not required for visibility)
-    if (!lbl.getAttribute('data-name')) lbl.setAttribute('data-name', expected);
-
-    // ensure there’s a visible .sink-name span
-    let box = lbl.querySelector('.sink-addon');
-    let nameSpan = lbl.querySelector('.sink-name');
-    if (!nameSpan) {
-      nameSpan = document.createElement('span');
-      nameSpan.className = 'sink-name';
-      if (box) box.insertAdjacentElement('afterend', nameSpan);
-      else lbl.prepend(nameSpan);
-    }
-    if (!nameSpan.textContent.trim()) nameSpan.textContent = expected;
-  });
-});
