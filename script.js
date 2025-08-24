@@ -131,38 +131,23 @@ function calculate() {
   let sumTotal = 0;
 
   rows.forEach(row => {
-    const L = parseFloat(row.querySelector(".length")?.value) || 0;
-    const W = parseFloat(row.querySelector(".width")?.value)  || 0;
-    const sinkType = row.querySelector(".sink")?.value || "";
-    const ptype = row.querySelector(".ptype")?.value || "Countertop";
-    const refabLF = parseFloat(row.querySelector(".refab")?.value) || 0;
-
-const sqft = Math.ceil((L * W) / 144);
-    let sinkCost = 0;
-    if (sinkType === "kitchen_sink") sinkCost = 180;
-    else if (sinkType === "bathroom_sink") sinkCost = 80;
-    else if (sinkType === "bar_sink") sinkCost = 80;
-
-    const labor = sqft * LABOR_RATE;
-    let extras = sinkCost + refabLF * REFAB_RATE;
-
-    // Island surcharge if both dimensions exceed thresholds
-    if (ptype === "Island" && L >= ISLAND_SURCHARGE_L && W >= ISLAND_SURCHARGE_W) {
-      extras += ISLAND_SURCHARGE_COST;
-    }
-
-    const total = labor + extras;
-
-    row.querySelector(".sqft").innerText  = sqft.toFixed(2);
-    row.querySelector(".labor").innerText = labor.toFixed(2);
-    row.querySelector(".extras").innerText = extras.toFixed(2);
-    row.querySelector(".total").innerText = total.toFixed(2);
-
-    sumSqft  += sqft;
-    sumLabor += labor;
-    sumExtras += extras;
-    sumTotal += total;
+    // ... your per-row calculations ...
   });
+
+  // --- NEW: add sink add-ons ONLY to final project total ---
+  const sinkAddons = getSinkAddonsTotal();
+
+  // update totals
+  document.getElementById("totalSqft").innerText   = sumSqft.toFixed(2);
+  document.getElementById("totalLabor").innerText  = sumLabor.toFixed(2);
+  document.getElementById("totalExtras").innerText = sumExtras.toFixed(2);
+  document.getElementById("totalCost").innerText   = (sumTotal + sinkAddons).toFixed(2);
+
+  // 👇 ADD THIS here to show sink add-ons separately
+  const sinkCell = document.getElementById('totalSinkAddons');
+  if (sinkCell) sinkCell.innerText = sinkAddons.toFixed(2);
+}
+
 
   // Add sink add-ons (qty-based) ONLY to final project total
   const sinkAddons = getSinkAddonsTotal();
