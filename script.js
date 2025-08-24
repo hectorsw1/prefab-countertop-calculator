@@ -34,12 +34,20 @@ const ISLAND_SURCHARGE_W = 42;    // inches
 const ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };
 
+// --- NEW: Sink add-ons helper (adds to grand total only; not itemized) ---
+function getSinkAddonsTotal() {
+  const boxes = document.querySelectorAll('.sink-addon:checked');
+  let sum = 0;
+  boxes.forEach(b => { sum += Number(b.dataset.price || 0); });
+  return sum;
+}
+
 // Hook into your total calculator
 document.addEventListener('DOMContentLoaded', () => {
   const boxes = document.querySelectorAll('.sink-addon');
   boxes.forEach(b => {
     b.addEventListener('change', () => {
-      if (typeof calculateTotals === 'function') calculateTotals();
+      if (typeof calculate === 'function') calculate(); // call your totals function
     });
   });
 });
@@ -136,10 +144,13 @@ function calculate() {
     sumTotal += total;
   });
 
-  document.getElementById("totalSqft").innerText  = sumSqft.toFixed(2);
-  document.getElementById("totalLabor").innerText = sumLabor.toFixed(2);
+  // --- NEW: add sink add-ons ONLY to final project total (not to per-row extras) ---
+  const sinkAddons = getSinkAddonsTotal();
+
+  document.getElementById("totalSqft").innerText   = sumSqft.toFixed(2);
+  document.getElementById("totalLabor").innerText  = sumLabor.toFixed(2);
   document.getElementById("totalExtras").innerText = sumExtras.toFixed(2);
-  document.getElementById("totalCost").innerText  = sumTotal.toFixed(2);
+  document.getElementById("totalCost").innerText   = (sumTotal + sinkAddons).toFixed(2);
 }
 
 // --- OCR (Tesseract.js) ---
