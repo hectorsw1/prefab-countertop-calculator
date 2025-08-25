@@ -34,32 +34,40 @@ const ISLAND_SURCHARGE_W = 43;     // inches
 const ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };
 
-/* =========================================================================
-   OPTION B: Quantities only for sink add-ons (0–20 each).
-   - Each .sink-item has data-price
-   - Each .sink-qty is a number input (0–20). 0 means "not selected".
-   - Total add-on = sum(price * qty)
-   ========================================================================= */
+// --- LIVE STATE for plywood ---
+let currentPlywoodSheets = 0;
+let currentPlywoodCost = 0;
 
-// Reads quantities instead of checkboxes
-function getSinkAddonsTotal() {
+/* =========================================================================
+   SINK ADD-ONS (0–20 each, quantity inputs)
+   Split into KITCHEN vs BATHROOM; anything not "bath" rolls into Kitchen.
+   ========================================================================= */
+function getSinkAddonsSplit() {
   const items = document.querySelectorAll('#sink-options .sink-item');
-  let sum = 0;
+  let kitchen = 0, bathroom = 0, other = 0;
+
   items.forEach(item => {
     const price = Number(item.dataset.price || 0);
     const qtyInput = item.querySelector('.sink-qty');
     const qty = Math.min(20, Math.max(0, parseInt(qtyInput?.value || '0', 10)));
-    if (!isNaN(qty) && qty > 0) sum += price * qty;
+    if (!qty) return;
+
+    const id = qtyInput?.id || '';
+    const amount = price * qty;
+
+    if (id.startsWith('qty-b')) bathroom += amount;   // bathroom sinks
+    else if (id.startsWith('qty-k')) kitchen += amount; // kitchen sinks
+    else kitchen += amount; // rule: default to kitchen
   });
-  return sum;
+
+  return { kitchen, bathroom, other, total: kitchen + bathroom + other };
 }
 
-// Clamp qty and recalc on change; also init once on load
+// --- On load: prep rows, wire inputs, initial calc, wire manual fee ---
 document.addEventListener('DOMContentLoaded', () => {
-  // Ensure at least 50 rows exist
   ensureRows(50);
 
-  // Wire sink qty inputs
+  // Wire sink qty inputs (clamp + recalc)
   document.querySelectorAll('#sink-options .sink-qty').forEach(input => {
     const clamp = () => {
       let v = parseInt(input.value || '0', 10);
@@ -71,7 +79,15 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('blur', clamp);
   });
 
-  // Initial calculation to populate totals block on first render
+  // Wire manual oversize fee to recalc
+  const feeInput = document.getElementById('oversizeFeeInput');
+  if (feeInput) {
+    feeInput.addEventListener('input', () => {
+      if (typeof calculate === 'function') calculate();
+    });
+  }
+
+  // Initial totals
   if (typeof calculate === 'function') calculate();
 });
 
@@ -137,10 +153,10 @@ function calculate() {
     const ptype = row.querySelector(".ptype")?.value || "Countertop";
     const refabLF = parseFloat(row.querySelector(".refab")?.value) || 0;
 
-    // Round sqft up per-piece (e.g., 6.1 -> 7)
+    // Round sqft up per-piece
     const sqft = Math.ceil((L * W) / 144);
 
-    // Per-row sink install (not the add-on qty section)
+    // Per-row sink install (NOT the add-on qty section)
     let sinkCost = 0;
     if (sinkType === "kitchen_sink") sinkCost = 180;
     else if (sinkType === "bathroom_sink") sinkCost = 80;
@@ -169,8 +185,14 @@ function calculate() {
     sumTotal += total;
   });
 
-  // ===== Sink add-ons (qty × price, from the blue card) =====
-  const sinkAddons = getSinkAddonsTotal(); // reads #sink-options .sink-item[data-price] + .sink-qty
+  // ===== Sink add-ons (qty × price) split into kitchen/bath =====
+  const sinkAddons = getSinkAddonsSplit();
+  const kitchenAddons = sinkAddons.kitchen;
+  const bathAddons = sinkAddons.bathroom;
+
+  // ===== Manual oversize fee =====
+  const oversizeFeeEl = document.getElementById('oversizeFeeInput');
+  const oversizeFee = oversizeFeeEl ? Number(oversizeFeeEl.value || 0) : 0;
 
   // ===== Update the table footer (top totals row) =====
   const tableSqftEl   = document.getElementById("totalSqft");
@@ -181,32 +203,26 @@ function calculate() {
   if (tableSqftEl)   tableSqftEl.innerText   = sumSqft.toFixed(2);
   if (tableLaborEl)  tableLaborEl.innerText  = sumLabor.toFixed(2);
   if (tableExtrasEl) tableExtrasEl.innerText = sumExtras.toFixed(2);
-  if (tableCostEl)   tableCostEl.innerText   = (sumTotal + sinkAddons).toFixed(2);
+  if (tableCostEl)   tableCostEl.innerText   = (sumTotal + sinkAddons.total + oversizeFee + currentPlywoodCost - /* plywood already in sumTotal? no */ 0).toFixed(2);
 
   // ===== Bottom totals block =====
-  // 1) Sinks (selected) — the add-ons section
-  const sinksAmountEl = document.getElementById("sinksAmount");
-  if (sinksAmountEl) sinksAmountEl.textContent = `$${sinkAddons.toFixed(2)}`;
-
-  // 2) Kitchen/Bath install subtotals from per-row selects + fabrication
-  let kitchenInstall = 0, bathInstall = 0, fabricationCost = 0;
+  // Kitchen/Bath install subtotals from per-row selects + add-ons + fabrication + plywood
+  let kitchenInstallRows = 0, bathInstallRows = 0, fabricationCost = 0;
   rows.forEach(row => {
     const sinkType = row.querySelector(".sink")?.value || "";
-    if (sinkType === "kitchen_sink") kitchenInstall += 180;
-    else if (sinkType === "bathroom_sink") bathInstall += 80;
-    // bar sink install currently not split; include if needed
+    if (sinkType === "kitchen_sink") kitchenInstallRows += 180;
+    else if (sinkType === "bathroom_sink") bathInstallRows += 80;
+    else if (sinkType === "bar_sink") kitchenInstallRows += 80; // rule: count non-bath as kitchen
     fabricationCost += (parseFloat(row.querySelector(".refab")?.value) || 0) * REFAB_RATE;
   });
 
-  // 3) Plywood cost — parse from #plySummary if present
-  let plywoodCost = 0;
-  const plySummaryEl = document.getElementById("plySummary");
-  if (plySummaryEl && plySummaryEl.textContent) {
-    const m = plySummaryEl.textContent.match(/\$([\d.]+)/);
-    if (m) plywoodCost = Number(m[1]) || 0;
-  }
+  const kitchenTotalLine = kitchenInstallRows + kitchenAddons;
+  const bathTotalLine    = bathInstallRows + bathAddons;
 
-  // 4) Write to bottom block
+  // Plywood: use live computed value (not text parse)
+  const plywoodCost = currentPlywoodCost || 0;
+
+  // Write to bottom block
   const kEl = document.getElementById("kitchenSinkInstall");
   const bEl = document.getElementById("bathSinkInstall");
   const instEl = document.getElementById("installationCost");
@@ -214,14 +230,15 @@ function calculate() {
   const plyEl = document.getElementById("plywoodCost");
   const grandEl = document.getElementById("grandTotal");
 
-  if (kEl)    kEl.textContent    = `$${kitchenInstall.toFixed(2)}`;
-  if (bEl)    bEl.textContent    = `$${bathInstall.toFixed(2)}`;
+  if (kEl)    kEl.textContent    = `$${kitchenTotalLine.toFixed(2)}`;
+  if (bEl)    bEl.textContent    = `$${bathTotalLine.toFixed(2)}`;
   if (instEl) instEl.textContent = `$${sumLabor.toFixed(2)}`;
   if (fabEl)  fabEl.textContent  = `$${fabricationCost.toFixed(2)}`;
   if (plyEl)  plyEl.textContent  = `$${plywoodCost.toFixed(2)}`;
 
-  // 5) Grand total (labor+extras+per-row sink installs were already in sumTotal; add sinkAddons)
-  const grand = sumTotal + sinkAddons;
+  // Grand total = per-row totals + add-on sinks + plywood + manual oversize fee
+  // Note: sumTotal already includes labor + per-row extras (refab + per-row sink installs + any island surcharge)
+  const grand = sumTotal + kitchenAddons + bathAddons + plywoodCost + oversizeFee;
   if (grandEl) grandEl.textContent = `$${grand.toFixed(2)}`;
 }
 
@@ -243,7 +260,7 @@ if (imageInput) {
       previewImg.src = url;
       previewImg.style.display = "block";
     }
-    if (ocrStatus) ocrStatus.textContent = "Image loaded. Click 'Run OCR & Auto-Fill'.";
+    if (ocrStatus) ocrStatus.textContent = "Image loaded. Click 'Run OCR & Auto‑Fill'.";
   });
 }
 
@@ -265,8 +282,8 @@ if (runOcrBtn) {
         if (ocrStatus) ocrStatus.textContent = "No dimensions detected. Try a clearer photo, thicker marker, or add 'x' between numbers (e.g., 96 x 26).";
         return;
       }
-      autoFillRows(parts); // fills or adds rows as needed
-      if (ocrStatus) ocrStatus.textContent = `Auto-filled ${parts.length} item(s). Review and click Calculate or Suggest.`;
+      autoFillRows(parts);
+      if (ocrStatus) ocrStatus.textContent = `Auto‑filled ${parts.length} item(s). Review and click Calculate or Suggest.`;
     } catch (err) {
       console.error(err);
       if (ocrStatus) ocrStatus.textContent = "OCR failed. Try another image or retake with better lighting.";
@@ -400,9 +417,8 @@ function suggestPieces() {
 
     // Determine allowed prefab sizes (group rule)
     let allowed = cat;
-    const isMixLocked = (p.mat !== "Quartz") && p.group; // Granite/Marble/Quartzite with a group tag
+    const isMixLocked = (p.mat !== "Quartz") && p.group;
     if (isMixLocked && groupPrefab[p.group]) {
-      // Filter to only the previously chosen prefab for this group
       const gp = groupPrefab[p.group]; // [L,W] normalized
       allowed = cat.filter(s => {
         const SL = Math.max(s[0], s[1]), SW = Math.min(s[0], s[1]);
@@ -431,10 +447,8 @@ function suggestPieces() {
       return;
     }
 
-    // Lock group to this prefab if needed
-    if (isMixLocked && !groupPrefab[p.group]) {
-      groupPrefab[p.group] = best.slice();
-    }
+    // Lock group
+    if (isMixLocked && !groupPrefab[p.group]) groupPrefab[p.group] = best.slice();
 
     // Use chosen prefab, add leftovers
     const usedL = p.L, usedW = p.W;
@@ -521,10 +535,12 @@ function suggestPlywood() {
     tr.innerHTML = `<td>${idx+1}</td><td>${cutsStr}</td><td>${leftStr}</td>`;
     plyBody.appendChild(tr);
   });
-  const sheetCount = sheets.length || 0;
-  const cost = sheetCount * PLY_SHEET.COST;
-  plySummary.textContent = `Sheets used: ${sheetCount} × $${PLY_SHEET.COST} = $${cost.toFixed(2)}`;
 
-  // After plywood suggestion changes cost, refresh totals block if present
+  // Update live plywood state and summary
+  currentPlywoodSheets = sheets.length || 0;
+  currentPlywoodCost = currentPlywoodSheets * PLY_SHEET.COST;
+  plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)}`;
+
+  // Refresh totals block
   if (typeof calculate === 'function') calculate();
 }
