@@ -11,6 +11,7 @@
 <body>
   <h1>Prefab Countertop Calculator</h1>
 
+  <!-- ============== Upload / OCR ============== -->
   <section class="uploader">
     <h2>Sketch Upload (Draw → Quote)</h2>
     <input type="file" id="imageInput" accept="image/*" />
@@ -21,40 +22,43 @@
     </div>
   </section>
 
-  <!-- Three primary actions -->
+  <!-- ============== Main Controls ============== -->
   <section class="controls">
     <button id="calcBtn" onclick="calculate()">Calculate Totals</button>
     <button id="suggestBtn" onclick="suggestPieces()">Suggest Prefab Pieces</button>
-    <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood Sheets</button>
+    <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood</button>
   </section>
 
-  <!-- Sink Options (inside blue card) – Option B (quantity only, 0–20) -->
+  <!-- ============== Sink Options ============== -->
+  <!-- Option B (quantity inputs 0–20). Prices on parent via data-price. -->
   <div id="sink-options">
     <div class="section-title">Optional Sink Selections</div>
 
     <div class="sink-grid">
+      <!-- Kitchen group (IDs start with qty-k...) -->
       <label class="sink-item" data-price="180" for="qty-kstd">
-        <span class="sink-name">Standard Kitchen Sink Undermount</span>
+        <span class="sink-name">Standard Kitchen Sink (Undermount)</span>
         <input id="qty-kstd" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
       <label class="sink-item" data-price="455" for="qty-khand">
-        <span class="sink-name">HandMade Kitchen Sink Undermount</span>
+        <span class="sink-name">HandMade Kitchen Sink (Undermount)</span>
         <input id="qty-khand" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
       <label class="sink-item" data-price="560" for="qty-kws">
-        <span class="sink-name">WorkStation Kitchen Sink Undermount</span>
+        <span class="sink-name">WorkStation Kitchen Sink (Undermount)</span>
         <input id="qty-kws" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
       <label class="sink-item" data-price="200" for="qty-kapron">
-        <span class="sink-name">Apron Kitchen Sink Undermount</span>
+        <span class="sink-name">Apron Kitchen Sink (Undermount)</span>
         <input id="qty-kapron" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
+      <!-- Bathroom group (IDs start with qty-b...) -->
       <label class="sink-item" data-price="80" for="qty-bstd">
-        <span class="sink-name">Standard Bathroom Sink Undermount</span>
+        <span class="sink-name">Standard Bathroom Sink (Undermount)</span>
         <input id="qty-bstd" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
@@ -70,7 +74,7 @@
     </div>
   </div>
 
-  <!-- TABLE STARTS HERE -->
+  <!-- ============== Input Table ============== -->
   <table id="inputTable">
     <thead>
       <tr>
@@ -100,6 +104,7 @@
     </tfoot>
   </table>
 
+  <!-- ============== Suggestions ============== -->
   <h2>Suggested Prefab Pieces (by Material/Type, leftovers reused)</h2>
   <table id="suggestTable">
     <thead>
@@ -119,21 +124,6 @@
   <h2>Plywood Sheets (48×96 @ $70, minimized waste)</h2>
   <div id="plySummary"></div>
   <table id="plyTable">
-    <!-- Bottom Totals Block -->
-<div id="totalsBlock" style="margin-top:20px; max-width:400px; float:right; font-size:14px;">
-  <div class="totals-row"><span>Kitchen Sink installation cost:</span><span id="kitchenSinkInstall">$0.00</span></div>
-  <div class="totals-row"><span>Bathroom Sink installation cost:</span><span id="bathSinkInstall">$0.00</span></div>
-  <div class="totals-row"><span>Installation cost:</span><span id="installationCost">$0.00</span></div>
-  <div class="totals-row"><span>Fabrication:</span><span id="fabricationCost">$0.00</span></div>
-  <div class="totals-row"><span>Plywood:</span><span id="plywoodCost">$0.00</span></div>
-
-  <!-- NEW: sinks subtotal line -->
-  <div class="totals-row"><span>Sinks (selected):</span><span id="sinksAmount">$0.00</span></div>
-
-  <hr/>
-  <div class="totals-row" style="font-weight:600;"><span>Total:</span><span id="grandTotal">$0.00</span></div>
-</div>
-
     <thead>
       <tr>
         <th>Sheet #</th>
@@ -143,6 +133,27 @@
     </thead>
     <tbody id="plyBody"></tbody>
   </table>
+
+  <!-- ============== Bottom Totals Block (like your screenshot) ============== -->
+  <div id="totalsBlock" style="margin-top:20px; max-width:400px; float:right; font-size:14px;">
+    <div class="totals-row"><span>Kitchen Sink installation cost:</span><span id="kitchenSinkInstall">$0.00</span></div>
+    <div class="totals-row"><span>Bathroom Sink installation cost:</span><span id="bathSinkInstall">$0.00</span></div>
+    <div class="totals-row"><span>Installation cost:</span><span id="installationCost">$0.00</span></div>
+    <div class="totals-row"><span>Fabrication:</span><span id="fabricationCost">$0.00</span></div>
+    <div class="totals-row"><span>Plywood:</span><span id="plywoodCost">$0.00</span></div>
+
+    <!-- Manual fee input (you asked for manual, not auto) -->
+    <div class="totals-row" id="oversizeFeeRow">
+      <span>Oversize piece fee:</span>
+      <span>
+        <input id="oversizeFeeInput" type="number" min="0" step="1" value="0"
+               style="width:120px; text-align:right; padding:4px 6px;">
+      </span>
+    </div>
+
+    <hr/>
+    <div class="totals-row" style="font-weight:600;"><span>Total:</span><span id="grandTotal">$0.00</span></div>
+  </div>
 
   <!-- Tesseract.js -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
