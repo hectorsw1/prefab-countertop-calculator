@@ -71,6 +71,31 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('blur', clamp);
   });
 });
+  // ---- Update bottom totals block ----
+  // Pull sinkAddons we already calculated
+  const sinksLine = document.getElementById("sinksAmount");
+  if (sinksLine) sinksLine.textContent = `$${sinkAddons.toFixed(2)}`;
+
+  // Kitchen vs Bathroom install (from per-row sinkType selections)
+  let kitchenInstall = 0, bathInstall = 0, fabricationCost = 0;
+  rows.forEach(row => {
+    const sinkType = row.querySelector(".sink")?.value || "";
+    if (sinkType === "kitchen_sink") kitchenInstall += 180;
+    else if (sinkType === "bathroom_sink") bathInstall += 80;
+    fabricationCost += parseFloat(row.querySelector(".refab")?.value || 0) * REFAB_RATE;
+  });
+
+  const plywoodCost = (document.getElementById("plySummary").textContent.match(/\$([\d.]+)/) || [0,0])[1];
+
+  // Write into bottom block
+  document.getElementById("kitchenSinkInstall").textContent = `$${kitchenInstall.toFixed(2)}`;
+  document.getElementById("bathSinkInstall").textContent    = `$${bathInstall.toFixed(2)}`;
+  document.getElementById("installationCost").textContent   = `$${sumLabor.toFixed(2)}`;
+  document.getElementById("fabricationCost").textContent    = `$${fabricationCost.toFixed(2)}`;
+  document.getElementById("plywoodCost").textContent        = `$${Number(plywoodCost).toFixed(2)}`;
+
+  const grand = sumTotal + sinkAddons;
+  document.getElementById("grandTotal").textContent = `$${grand.toFixed(2)}`;
 
 // --- TABLE SETUP: generate 50 rows initially ---
 window.onload = function () {
