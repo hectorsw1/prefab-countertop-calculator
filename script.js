@@ -5,28 +5,28 @@ const PREFAB = {
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Ctop/Island/Bartop only
+    FullBacksplash: [] // cut from Countertop/Island/Bartop only
   },
   Quartz: {
     Countertop: [[26,96],[26,108],[26,114],[26,120]],
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Ctop/Island/Bartop only
+    FullBacksplash: [] // cut from Countertop/Island/Bartop only
   },
   Quartzite: {
     Countertop: [[26,96],[26,108],[26,114]],
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Ctop/Island/Bartop only
+    FullBacksplash: [] // cut from Countertop/Island/Bartop only
   },
   Marble: {
     Countertop: [[26,96],[26,108],[26,114]],
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Ctop/Island/Bartop only
+    FullBacksplash: [] // cut from Countertop/Island/Bartop only
   }
 };
 
@@ -36,7 +36,7 @@ const REFAB_RATE = 30;             // $/lf
 const ISLAND_SURCHARGE_L = 120;    // inches
 const ISLAND_SURCHARGE_W = 43;     // inches
 const ISLAND_SURCHARGE_COST = 150;
-
+const PLY_SHEET = { L: 96, W: 48, COST: 70 };
 
 // Plywood offsets (for underlayment sizing)
 const PLY_OFFSET_LENGTH = 3;  // subtract from length
@@ -136,6 +136,11 @@ function ensureRows(targetCount) {
 
 /* ===================== Calculate totals ===================== */
 function calculate() {
+  // Keep plywood in sync with the current form even if user didn't click its button
+  const { sheets: _sheets, cost: _cost } = computePlywoodPlan();
+  currentPlywoodSheets = _sheets.length;
+  currentPlywoodCost = _cost;
+
   const rows = document.querySelectorAll("#inputTable tbody tr");
 
   let sumSqft = 0;
@@ -507,14 +512,15 @@ function suggestPieces() {
   }
 }
 
-/* ===================== Plywood packing (48×96, offsets) ===================== */
-function suggestPlywood() {
+/* ===================== Pure plywood planner (no DOM writes) ===================== */
+// Returns { sheets, cost }
+function computePlywoodPlan() {
   const rows = Array.from(document.querySelectorAll("#inputTable tbody tr"));
   const pieces = [];
 
   rows.forEach(row => {
     const type = (row.querySelector(".ptype")?.value || "").trim();
-    if (!["Countertop","Island","Bartop"].includes(type)) return; // exclude backsplashes
+    if (!["Countertop","Island","Bartop"].includes(type)) return; // exclude backsplash & full backsplash
 
     const rawL = parseFloat(row.querySelector(".length")?.value) || 0;
     const rawW = parseFloat(row.querySelector(".width")?.value)  || 0;
@@ -529,10 +535,17 @@ function suggestPlywood() {
     pieces.push({ L, W, area: L*W });
   });
 
+  // nothing to cut
+  if (pieces.length === 0) {
+    return { sheets: [], cost: 0 };
+  }
+
+  // sort largest-first
   pieces.sort((a,b)=> b.area - a.area);
 
+  // pack
   const sheets = []; // [{leftovers:[{L,W}], cuts:[{L,W}]}]
-  function newSheet() { return { leftovers: [{L: PLY_SHEET.L, W: PLY_SHEET.W}], cuts: [] }; }
+  const newSheet = () => ({ leftovers: [{L: PLY_SHEET.L, W: PLY_SHEET.W}], cuts: [] });
 
   pieces.forEach(p => {
     let placed = false;
@@ -561,8 +574,9 @@ function suggestPlywood() {
     if (!placed) {
       const sh = newSheet();
       const r = sh.leftovers[0];
-      const rectL = r.L, rectW = r.W;
 
+      // place on fresh sheet
+      const rectL = r.L, rectW = r.W;
       const rem1 = { L: rectL - p.L, W: p.W };
       const rem2 = { L: rectL,       W: rectW - p.W };
 
@@ -573,7 +587,14 @@ function suggestPlywood() {
     }
   });
 
-  // render
+  return { sheets, cost: (sheets.length || 0) * PLY_SHEET.COST };
+}
+
+/* ===================== Plywood button: render using planner ===================== */
+function suggestPlywood() {
+  const { sheets, cost } = computePlywoodPlan();
+
+  // render table
   const plyBody = document.getElementById("plyBody");
   const plySummary = document.getElementById("plySummary");
   plyBody.innerHTML = "";
@@ -585,9 +606,12 @@ function suggestPlywood() {
     plyBody.appendChild(tr);
   });
 
-  currentPlywoodSheets = sheets.length || 0;
-  currentPlywoodCost = currentPlywoodSheets * PLY_SHEET.COST;
-  plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood piece size = L–3", W–2")`;
+  currentPlywoodSheets = sheets.length;
+  currentPlywoodCost = cost;
+  if (plySummary) {
+    plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood piece size = L–3", W–2")`;
+  }
 
+  // refresh totals AFTER state set
   calculate();
 }
