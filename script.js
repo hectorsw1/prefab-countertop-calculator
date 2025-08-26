@@ -475,10 +475,11 @@ function suggestPieces() {
     );
   });
 
-  // Roll-up summary: piece counts & total leftover area
-  let totalLeftIn2 = 0;
-  Object.values(leftovers).forEach(arr => arr.forEach(r => totalLeftIn2 += (r.L * r.W)));
-  const totalLeftFt2 = totalLeftIn2 / 144;
+  // ===== Roll-up summary: piece counts & leftover pieces =====
+  let leftoverPieces = [];
+  Object.values(leftovers).forEach(arr => arr.forEach(r => {
+    leftoverPieces.push(`${r.L.toFixed(0)} × ${r.W.toFixed(0)}`);
+  }));
 
   const summaryEl = document.getElementById('prefabSummary');
   if (summaryEl) {
@@ -490,17 +491,20 @@ function suggestPieces() {
         ).join("")
       : `<tr><td colspan="3" class="muted">No new prefab pieces required (all parts fit into leftovers).</td></tr>`;
 
+    const leftoversHtml = leftoverPieces.length
+      ? `<ul style="margin:6px 0; padding-left:18px;">${leftoverPieces.map(sz => `<li>${sz}</li>`).join("")}</ul>`
+      : `<span class="muted">No leftover pieces</span>`;
+
     summaryEl.innerHTML = `
       <h3>Prefab roll-up</h3>
-      <div class="muted">Counts of pieces used (by prefab size), and total leftover area from the plan.</div>
+      <div class="muted">Counts of pieces used (by prefab size), and leftover piece sizes from the plan.</div>
       <table aria-label="Pieces needed by size">
         <thead><tr><th>Material</th><th>Prefab size (in)</th><th>Count</th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       <div style="margin-top:8px;">
-        <strong>Total leftover area:</strong>
-        ${totalLeftIn2.toFixed(0)} sq&nbsp;in
-        <span class="muted">(${totalLeftFt2.toFixed(2)} sq&nbsp;ft)</span>
+        <strong>Leftover pieces:</strong>
+        ${leftoversHtml}
       </div>
     `;
   }
