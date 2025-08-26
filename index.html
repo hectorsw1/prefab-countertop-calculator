@@ -5,37 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Prefab Countertop Calculator + OCR + Prefab & Plywood Suggestions</title>
 
-  <!-- Base stylesheet -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <h1>Prefab Countertop Calculator</h1>
 
-  <!-- ============== Upload / OCR ============== -->
+  <!-- Upload / OCR -->
   <section class="uploader">
     <h2>Sketch Upload (Draw → Quote)</h2>
     <input type="file" id="imageInput" accept="image/*" />
-    <button id="runOcrBtn">Run OCR & Auto‑Fill</button>
+    <button id="runOcrBtn">Run OCR & Auto-Fill</button>
     <div id="ocrStatus"></div>
     <div class="preview">
       <img id="previewImg" alt="Sketch preview" />
     </div>
   </section>
 
-  <!-- ============== Main Controls ============== -->
+  <!-- Controls -->
   <section class="controls">
     <button id="calcBtn" onclick="calculate()">Calculate Totals</button>
     <button id="suggestBtn" onclick="suggestPieces()">Suggest Prefab Pieces</button>
     <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood</button>
   </section>
 
-  <!-- ============== Sink Options ============== -->
-  <!-- Option B (quantity inputs 0–20). Prices on parent via data-price. -->
+  <!-- Sink Options (Quantities 0–20) -->
   <div id="sink-options">
     <div class="section-title">Optional Sink Selections</div>
 
     <div class="sink-grid">
-      <!-- Kitchen group (IDs start with qty-k...) -->
+      <!-- Kitchen -->
       <label class="sink-item" data-price="180" for="qty-kstd">
         <span class="sink-name">Standard Kitchen Sink (Undermount)</span>
         <input id="qty-kstd" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
@@ -56,7 +54,7 @@
         <input id="qty-kapron" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
       </label>
 
-      <!-- Bathroom group (IDs start with qty-b...) -->
+      <!-- Bathroom -->
       <label class="sink-item" data-price="80" for="qty-bstd">
         <span class="sink-name">Standard Bathroom Sink (Undermount)</span>
         <input id="qty-bstd" type="number" class="sink-qty" min="0" max="20" step="1" value="0" inputmode="numeric">
@@ -74,7 +72,7 @@
     </div>
   </div>
 
-  <!-- ============== Input Table ============== -->
+  <!-- Input Table -->
   <table id="inputTable">
     <thead>
       <tr>
@@ -104,7 +102,7 @@
     </tfoot>
   </table>
 
-  <!-- ============== Suggestions ============== -->
+  <!-- Suggestions -->
   <h2>Suggested Prefab Pieces (by Material/Type, leftovers reused)</h2>
   <table id="suggestTable">
     <thead>
@@ -121,6 +119,9 @@
     <tbody id="suggestBody"></tbody>
   </table>
 
+  <!-- Roll-up summary between suggestions and plywood -->
+  <div id="prefabSummary" class="rollup" aria-live="polite"></div>
+
   <h2>Plywood Sheets (48×96 @ $70, minimized waste)</h2>
   <div id="plySummary"></div>
   <table id="plyTable">
@@ -134,25 +135,23 @@
     <tbody id="plyBody"></tbody>
   </table>
 
-  <!-- ============== Bottom Totals Block (like your screenshot) ============== -->
-  <div id="totalsBlock" style="margin-top:20px; max-width:400px; float:right; font-size:14px;">
+  <!-- Totals block -->
+  <div id="totalsBlock" class="totals-card">
     <div class="totals-row"><span>Kitchen Sink installation cost:</span><span id="kitchenSinkInstall">$0.00</span></div>
     <div class="totals-row"><span>Bathroom Sink installation cost:</span><span id="bathSinkInstall">$0.00</span></div>
     <div class="totals-row"><span>Installation cost:</span><span id="installationCost">$0.00</span></div>
     <div class="totals-row"><span>Fabrication:</span><span id="fabricationCost">$0.00</span></div>
     <div class="totals-row"><span>Plywood:</span><span id="plywoodCost">$0.00</span></div>
 
-    <!-- Manual fee input (you asked for manual, not auto) -->
     <div class="totals-row" id="oversizeFeeRow">
       <span>Oversize piece fee:</span>
       <span>
-        <input id="oversizeFeeInput" type="number" min="0" step="1" value="0"
-               style="width:120px; text-align:right; padding:4px 6px;">
+        <input id="oversizeFeeInput" type="number" min="0" step="1" value="0">
       </span>
     </div>
 
     <hr/>
-    <div class="totals-row" style="font-weight:600;"><span>Total:</span><span id="grandTotal">$0.00</span></div>
+    <div class="totals-row grand"><span>Total:</span><span id="grandTotal">$0.00</span></div>
   </div>
 
   <!-- Tesseract.js -->
