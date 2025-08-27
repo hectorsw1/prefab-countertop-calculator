@@ -289,21 +289,97 @@ function shrinkBins(bins, candidates, width){
 }
 
 /* ===================== Suggest Prefab Pieces ===================== */
-function suggestPieces(){
-  const tbody = document.getElementById('suggestBody');
-  tbody.innerHTML='';
+pools.forEach((byWidth) => {
+  // Keep keys as strings; sort using numeric value
+  const widthKeys = Array.from(byWidth.keys())
+    .sort((a, b) => parseFloat(b) - parseFloat(a)); // widest → narrowest
 
-  const rows = Array.from(document.querySelectorAll('#inputTable tbody tr'));
-  const parts=[];
-  rows.forEach((row,i)=>{
-    const L=parseFloat(row.querySelector('.length')?.value)||0;
-    const W=parseFloat(row.querySelector('.width')?.value)||0;
-    const mat=row.querySelector('.material')?.value||'Quartz';
-    const typ=row.querySelector('.ptype')?.value||'Countertop';
-    const group=(row.querySelector('.group')?.value||'').trim();
-    if (L>0 && W>0) parts.push({idx:i+1, group, L, W, mat, typ});
+  let carryBins = [];
+  const placements = new Map(); // idx -> logs
+
+  widthKeys.forEach(wk => {
+    const partsW = byWidth.get(wk) || [];
+    if (!partsW.length) return;
+
+    // width from data (numeric). Alternatively: const width = parseFloat(wk);
+    const width = partsW[0].W;
+    const { mat, typ } = partsW[0];
+
+    const candidates = getCandidatesFor(mat, typ);
+    if (!candidates.length) {
+      partsW.forEach(p =>
+        addRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, 'No fit', '-', '—')
+      );
+      return;
+    }
+
+    // 1) try to place into carried (wider) bins
+    const remaining = [];
+    partsW.slice().sort((a,b)=>b.L-a.L).forEach(p => {
+      let placed = false;
+      for (let i = 0; i < carryBins.length && !placed; i++) {
+        const b = carryBins[i];
+        if (b.SW + 1e-6 >= width && b.remaining + 1e-6 >= p.L) {
+          b.cuts.push({ part: p, cutL: p.L, cutW: width });
+          b.remaining -= p.L;
+          b.rowIdxs.add(p.idx);
+          placed = true;
+        }
+      }
+      if (!placed) remaining.push(p);
+    });
+
+    // 2) open new bins for the rest (fewest slabs → minimal lengths)
+    let newBins = [];
+    if (remaining.length) {
+      const single = packSingleSlabIfPossible(remaining, candidates, width);
+      newBins = single ? single : packMultiSizeFFD(remaining, candidates, width);
+    }
+
+    // 3) shrink to smallest viable lengths
+    carryBins = shrinkBins(carryBins.concat(newBins), candidates, width);
+
+    // 4) record placements & leftovers for this width
+    carryBins.forEach((b, bi) => {
+      if (b.SL && b.SW) addCount(mat, b.SL, b.SW);
+      let running = b.SL ?? 0;
+      const rowsUsed = b.rowIdxs ? Array.from(b.rowIdxs).sort((x,y)=>x-y).join(', ') : '';
+      (b.cuts || []).forEach((c, ci) => {
+        if (Math.abs(c.cutW - width) > 1e-5) return; // only this width bucket
+        running -= c.cutL;
+        const isLast = ci === (b.cuts.length - 1);
+        const tag = rowsUsed ? `(Piece #${bi+1}; Rows ${rowsUsed})` : `(Piece #${bi+1})`;
+        const cutStr  = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
+        const prefStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} ${tag}` : '-';
+
+        let leftStr = '—';
+        const rem = Math.max(0, running);
+        if (b.SL && isLast && rem > 0) {
+          leftStr = `${rem.toFixed(2)}×${width.toFixed(2)} ${tag}`;
+          leftoverPieces.push(`${rem.toFixed(0)} × ${width.toFixed(0)} ${tag}`);
+        }
+
+        const arr = placements.get(c.part.idx) || [];
+        arr.push({ group: c.part.group, typ: c.part.typ, cutStr, prefStr, leftStr });
+        placements.set(c.part.idx, arr);
+      });
+    });
+
+    // 5) render rows for this width (in table order)
+    partsW.slice().sort((a,b)=>a.idx-b.idx).forEach(p => {
+      const arr = (placements.get(p.idx) || [])
+        .filter(pl => pl.cutStr.endsWith(`×${width.toFixed(2)}`));
+      if (!arr.length) {
+        addRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, 'No fit', '-', '—');
+      } else {
+        arr.forEach((pl, j) =>
+          addRow(p.idx, p.group, p.typ, pl.cutStr, j === 0 ? 'Prefab' : 'Leftover', pl.prefStr, pl.leftStr)
+        );
+      }
+    });
   });
-  if (!parts.length) return;
+});
+
 
   // Pools: MATERIAL only
   const pools = new Map(); // key -> Map(widthKey -> arr)
