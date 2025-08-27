@@ -390,11 +390,12 @@ function packFewestSlabsVarWidth(parts, candidates) {
   }
 
   const bins = [];
-  // Largest → smallest by AREA, then length (never rotate)
-  const list = parts.slice().sort((a,b)=>{
-    const aa = a.L*a.W, bb = b.L*b.W;
-    if (bb!==aa) return bb-aa;
-    return b.L - a.L;
+  // Cut order: widest first (so islands feed tops), then area, then length — never rotate.
+  const list = parts.slice().sort((a, b) => {
+    if (b.W !== a.W) return b.W - a.W;          // 1) width desc (e.g., 39″ before 26″)
+    const aa = a.L * a.W, bb = b.L * b.W;
+    if (bb !== aa) return bb - aa;              // 2) area desc
+    return b.L - a.L;                            // 3) length desc
   });
 
   for (const p of list) {
@@ -434,7 +435,7 @@ function packFewestSlabsVarWidth(parts, candidates) {
   return shrinkBinsVarWidth(bins, candidates);
 }
 
-/* ---------- previous fixed-width planner (kept for non-CT/ISL) ---------- */
+/* ---------- fixed-width planner (for non-CT/ISL) ---------- */
 function shrinkBins(bins, candidates, width) {
   const candsAsc = candidates
     .map(asSL_SW)
@@ -512,7 +513,8 @@ function suggestPieces() {
     const L = parseFloat(row.querySelector(".length")?.value) || 0;
     const W = parseFloat(row.querySelector(".width")?.value) || 0;
     const mat = row.querySelector(".material")?.value || "Quartz";
-    const typ = row.querySelector(".ptype")?.value || "Countertop";
+    theTyp = row.querySelector(".ptype")?.value || "Countertop";
+    const typ = theTyp;
     const group = (row.querySelector(".group")?.value || "").trim();
     if (L > 0 && W > 0) parts.push({ idx: i+1, group, L, W, mat, typ, area: L*W });
   });
