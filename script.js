@@ -365,16 +365,26 @@ function asSL_SW(size) {
   return [SL, SW];
 }
 function poolKeyForPack(mat, typ) {
-  return (typ === "FullBacksplash") ? `${mat}|FullBacksplash` : `${mat}|${typ}`;
+  // Single pool per MATERIAL → allows cross-type reuse (Countertop, Island, Bartop, …)
+  return `${mat}|ALL`;
 }
 function getCandidatesFor(material, type) {
+  // Unified catalog for all types (material only)
+  // FullBacksplash rule: exclude 4×108 "Backsplash" strips by not including them here.
   if (type === "FullBacksplash") {
-    // Only from larger stock
     return []
       .concat(PREFAB[material]?.Countertop || [],
               PREFAB[material]?.Island     || [],
               PREFAB[material]?.Bartop     || []);
   }
+  // All other cuts may come from any family (the width check will gate feasibility).
+  return []
+    .concat(PREFAB[material]?.Countertop || [],
+            PREFAB[material]?.Island     || [],
+            PREFAB[material]?.Bartop     || [],
+            PREFAB[material]?.Backsplash || []);
+}
+
   return (PREFAB[material] && PREFAB[material][type])
     ? PREFAB[material][type].slice()
     : [];
