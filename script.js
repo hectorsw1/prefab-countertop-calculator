@@ -531,7 +531,7 @@ function suggestPieces() {
   bins = packSingleSlabIfPossible(partsW, candidates, width);
   // Fallback: smarter multi-size packer (prefers larger slabs → fewer pieces)
   if (!bins) bins = packMultiSizeFFD(partsW, candidates, width);
-}
+} else {
 
         // Non-Quartz: enforce uniform size per pool (no mixing)
         const chosen = chooseUniformSize(candidates, partsW, width);
