@@ -498,12 +498,13 @@ function suggestPieces() {
 
       let bins = null;
 
-      if (mat === "Quartz") {
-        // (1) Try single slab first (e.g., 26×114 / 26×120)
-        bins = trySingleSlab(partsW, candidates, width);
-        // (2) Else pack with multi-size preferring larger slabs (min piece count)
-        if (!bins) bins = packMultiSizeFFD(partsW, candidates, width);
-      } else {
+  if (mat === "Quartz") {
+  // First: pack everything on ONE slab if the sum fits a catalog size
+  bins = packSingleSlabIfPossible(partsW, candidates, width);
+  // Fallback: smarter multi-size packer (prefers larger slabs → fewer pieces)
+  if (!bins) bins = packMultiSizeFFD(partsW, candidates, width);
+}
+
         // Non-Quartz: enforce uniform size per pool (no mixing)
         const chosen = chooseUniformSize(candidates, partsW, width);
         if (!chosen) {
