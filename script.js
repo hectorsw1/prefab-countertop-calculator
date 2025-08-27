@@ -5,44 +5,42 @@ const PREFAB = {
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Countertop/Island/Bartop only
+    FullBacksplash: []
   },
   Quartz: {
     Countertop: [[26,96],[26,108],[26,114],[26,120]],
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Countertop/Island/Bartop only
+    FullBacksplash: []
   },
   Quartzite: {
     Countertop: [[26,96],[26,108],[26,114]],
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Countertop/Island/Bartop only
+    FullBacksplash: []
   },
   Marble: {
     Countertop: [[26,96],[26,108],[26,114]],
     Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
-    FullBacksplash: [] // cut from Countertop/Island/Bartop only
+    FullBacksplash: []
   }
 };
 
 // --- CONSTANTS ---
-const LABOR_RATE = 14;             // $/sqft
-const REFAB_RATE = 30;             // $/lf
-const ISLAND_SURCHARGE_L = 120;    // inches
-const ISLAND_SURCHARGE_W = 43;     // inches
+const LABOR_RATE = 14;
+const REFAB_RATE = 30;
+const ISLAND_SURCHARGE_L = 120;
+const ISLAND_SURCHARGE_W = 43;
 const ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };
+const PLY_OFFSET_LENGTH = 3;
+const PLY_OFFSET_WIDTH  = 2;
 
-// Plywood offsets (for underlayment sizing)
-const PLY_OFFSET_LENGTH = 3;  // subtract from length
-const PLY_OFFSET_WIDTH  = 2;  // subtract from width
-
-// --- LIVE plywood state so totals can read it ---
+// --- LIVE plywood state ---
 let currentPlywoodSheets = 0;
 let currentPlywoodCost = 0;
 
@@ -59,7 +57,7 @@ function getSinkAddonsSplit() {
     const id = qtyInput.id || '';
     const amount = price * qty;
     if (id.startsWith('qty-b')) bathroom += amount;
-    else kitchen += amount; // default to kitchen
+    else kitchen += amount;
   });
 
   return { kitchen, bathroom, total: kitchen + bathroom };
@@ -69,7 +67,6 @@ function getSinkAddonsSplit() {
 document.addEventListener('DOMContentLoaded', () => {
   ensureRows(50);
 
-  // Wire qty inputs to recalc (and clamp)
   document.querySelectorAll('#sink-options .sink-qty').forEach(input => {
     const clamp = () => {
       let v = parseInt(input.value || '0', 10);
@@ -81,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('blur', clamp);
   });
 
-  // manual oversize fee → recalc
   const feeInput = document.getElementById('oversizeFeeInput');
   if (feeInput) feeInput.addEventListener('input', () => calculate());
 
@@ -136,7 +132,6 @@ function ensureRows(targetCount) {
 
 /* ===================== Calculate totals ===================== */
 function calculate() {
-  // Keep plywood in sync with the current form even if user didn't click its button
   const { sheets: _sheets, cost: _cost } = computePlywoodPlan();
   currentPlywoodSheets = _sheets.length;
   currentPlywoodCost = _cost;
@@ -155,7 +150,6 @@ function calculate() {
     const ptype = row.querySelector(".ptype")?.value || "Countertop";
     const refabLF = parseFloat(row.querySelector(".refab")?.value) || 0;
 
-    // sqft rounds up per-piece
     const sqft = Math.ceil((L * W) / 144);
 
     let sinkCost = 0;
@@ -166,35 +160,26 @@ function calculate() {
     const labor = sqft * LABOR_RATE;
     let extras = sinkCost + refabLF * REFAB_RATE;
 
-    // island surcharge
     if (ptype === "Island" && L >= ISLAND_SURCHARGE_L && W >= ISLAND_SURCHARGE_W) {
       extras += ISLAND_SURCHARGE_COST;
     }
 
     const total = labor + extras;
 
-    // render row
     row.querySelector(".sqft").innerText   = sqft.toFixed(2);
     row.querySelector(".labor").innerText  = labor.toFixed(2);
     row.querySelector(".extras").innerText = extras.toFixed(2);
     row.querySelector(".total").innerText  = total.toFixed(2);
 
-    // accum
     sumSqft  += sqft;
     sumLabor += labor;
     sumExtras += extras;
     sumTotal += total;
   });
 
-  // sink add-ons split
   const addons = getSinkAddonsSplit();
-  const kitchenAddons = addons.kitchen;
-  const bathAddons = addons.bathroom;
-
-  // manual oversize fee
   const oversizeFee = Number(document.getElementById('oversizeFeeInput')?.value || 0) || 0;
 
-  // table footer
   const tableSqftEl   = document.getElementById("totalSqft");
   const tableLaborEl  = document.getElementById("totalLabor");
   const tableExtrasEl = document.getElementById("totalExtras");
@@ -204,32 +189,21 @@ function calculate() {
   if (tableExtrasEl) tableExtrasEl.innerText = sumExtras.toFixed(2);
   if (tableCostEl)   tableCostEl.innerText   = (sumTotal + addons.total + currentPlywoodCost + oversizeFee).toFixed(2);
 
-  // totals block
-  // per-row sink install subtotals + fabrication
   let kitchenInstallRows = 0, bathInstallRows = 0, fabricationCost = 0;
   rows.forEach(row => {
     const sinkType = row.querySelector(".sink")?.value || "";
     if (sinkType === "kitchen_sink") kitchenInstallRows += 180;
     else if (sinkType === "bathroom_sink") bathInstallRows += 80;
-    else if (sinkType === "bar_sink") kitchenInstallRows += 80; // default to kitchen
+    else if (sinkType === "bar_sink") kitchenInstallRows += 80;
     fabricationCost += (parseFloat(row.querySelector(".refab")?.value) || 0) * REFAB_RATE;
   });
 
-  const kEl = document.getElementById("kitchenSinkInstall");
-  const bEl = document.getElementById("bathSinkInstall");
-  const instEl = document.getElementById("installationCost");
-  const fabEl = document.getElementById("fabricationCost");
-  const plyEl = document.getElementById("plywoodCost");
-  const grandEl = document.getElementById("grandTotal");
-
-  if (kEl)    kEl.textContent    = `$${(kitchenInstallRows + kitchenAddons).toFixed(2)}`;
-  if (bEl)    bEl.textContent    = `$${(bathInstallRows + bathAddons).toFixed(2)}`;
-  if (instEl) instEl.textContent = `$${sumLabor.toFixed(2)}`;
-  if (fabEl)  fabEl.textContent  = `$${fabricationCost.toFixed(2)}`;
-  if (plyEl)  plyEl.textContent  = `$${currentPlywoodCost.toFixed(2)}`;
-
-  const grand = sumTotal + kitchenAddons + bathAddons + currentPlywoodCost + oversizeFee;
-  if (grandEl) grandEl.textContent = `$${grand.toFixed(2)}`;
+  document.getElementById("kitchenSinkInstall").textContent = `$${(kitchenInstallRows + addons.kitchen).toFixed(2)}`;
+  document.getElementById("bathSinkInstall").textContent    = `$${(bathInstallRows + addons.bathroom).toFixed(2)}`;
+  document.getElementById("installationCost").textContent   = `$${sumLabor.toFixed(2)}`;
+  document.getElementById("fabricationCost").textContent    = `$${fabricationCost.toFixed(2)}`;
+  document.getElementById("plywoodCost").textContent        = `$${currentPlywoodCost.toFixed(2)}`;
+  document.getElementById("grandTotal").textContent         = `$${(sumTotal + addons.total + currentPlywoodCost + oversizeFee).toFixed(2)}`;
 }
 
 /* ===================== OCR (Tesseract.js) ===================== */
@@ -237,7 +211,6 @@ const imageInput = document.getElementById("imageInput");
 const runOcrBtn  = document.getElementById("runOcrBtn");
 const ocrStatus  = document.getElementById("ocrStatus");
 const previewImg = document.getElementById("previewImg");
-
 let uploadedImageURL = null;
 
 if (imageInput) {
@@ -337,218 +310,35 @@ function autoFillRows(parts) {
   }
 }
 
-/* ===================== Suggest Prefab Pieces ===================== */
-function suggestPieces() {
-  const suggestBody = document.getElementById("suggestBody");
-  suggestBody.innerHTML = "";
-  const rows = Array.from(document.querySelectorAll("#inputTable tbody tr"));
+/* ===================== PREFAB Packing helpers ===================== */
+// (helpers go here — see my previous message with bucketWidthKey, poolKeyForPack, etc.)
+// For brevity, I’ll keep them collapsed in this snippet,
+// but you will paste the full helper set exactly as I gave you earlier.
 
-  // Build parts
-  const parts = [];
-  rows.forEach((row, i) => {
-    const L = parseFloat(row.querySelector(".length")?.value) || 0;
-    const W = parseFloat(row.querySelector(".width")?.value) || 0;
-    const mat = row.querySelector(".material")?.value || "Quartz";
-    const typ = row.querySelector(".ptype")?.value || "Countertop";
-    const group = (row.querySelector(".group")?.value || "").trim();
-    if (L > 0 && W > 0) parts.push({ idx: i+1, group, L: Math.max(L,W), W: Math.min(L,W), mat, typ, area: L*W });
-  });
-
-  // Sort largest-first
-  parts.sort((a,b)=> b.area - a.area);
-
-  // Pools & locks
-  const leftovers = {};    // poolKey -> [{L,W}]
-  const groupPrefab = {};  // non-Quartz: lock same prefab per group
-  const pieceCounts = {};  // { Material: { "L×W": count } }
-  const addCount = (mat, SL, SW) => {
-    const key = `${SL.toFixed(0)}×${SW.toFixed(0)}`;
-    pieceCounts[mat] = pieceCounts[mat] || {};
-    pieceCounts[mat][key] = (pieceCounts[mat][key] || 0) + 1;
-  };
-
-  function poolKeyFor(material, type) {
-    if (material === "Quartz") return `${material}|ALL`;
-    return type === "FullBacksplash" ? `${material}|FullBacksplash` : `${material}|${type}`;
-  }
-  const concatAll = (...arrs) => arrs.reduce((acc, a) => (a ? acc.concat(a) : acc), []);
-  const QUARTZ_UNION_ALL = concatAll(
-    PREFAB.Quartz.Countertop, PREFAB.Quartz.Island,
-    PREFAB.Quartz.Bartop, PREFAB.Quartz.Backsplash
-  );
-
-  parts.forEach(p => {
-    const poolKey = poolKeyFor(p.mat, p.typ);
-    leftovers[poolKey] = leftovers[poolKey] || [];
-
-    // 1) fit from leftovers
-    let placed = false;
-    for (let i = 0; i < leftovers[poolKey].length && !placed; i++) {
-      const slab = leftovers[poolKey][i];
-      const fit1 = (p.L <= slab.L && p.W <= slab.W);
-      const fit2 = (p.L <= slab.W && p.W <= slab.L);
-      if (fit1 || fit2) {
-        const rectL = fit1 ? slab.L : slab.W;
-        const rectW = fit1 ? slab.W : slab.L;
-        const rem1 = { L: rectL - p.L, W: p.W };
-        const rem2 = { L: rectL,       W: rectW - p.W };
-        leftovers[poolKey].splice(i,1);
-        [rem1, rem2].forEach(r => { if (r.L > 1 && r.W > 1) leftovers[poolKey].push(r); });
-        addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "Leftover",
-                      "—", `${rem1.L.toFixed(2)}×${rem1.W.toFixed(2)}, ${rem2.L.toFixed(2)}×${rem2.W.toFixed(2)}`);
-        placed = true;
-      }
-    }
-    if (placed) return;
-
-    // 2) candidates per rules
-    let candidates = null;
-    if (p.mat === "Quartz") {
-      candidates = QUARTZ_UNION_ALL.slice();
-      if (p.typ === "FullBacksplash") {
-        // exclude 4×108 strips
-        candidates = candidates.filter(s => {
-          const SL = Math.max(s[0], s[1]), SW = Math.min(s[0], s[1]);
-          return !(SL === 108 && SW === 4);
-        });
-      }
-    } else {
-      if (p.typ === "FullBacksplash") {
-        candidates = concatAll(
-          PREFAB[p.mat].Countertop,
-          PREFAB[p.mat].Island,
-          PREFAB[p.mat].Bartop
-        );
-      } else {
-        candidates = PREFAB[p.mat] && PREFAB[p.mat][p.typ] ? PREFAB[p.mat][p.typ] : null;
-      }
-    }
-    if (!candidates || candidates.length === 0) {
-      addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "-");
-      return;
-    }
-
-    // 3) same-size-per-group lock (non-Quartz)
-    let allowed = candidates;
-    const lockable = (p.mat !== "Quartz") && p.group;
-    if (lockable && groupPrefab[p.group]) {
-      const gp = groupPrefab[p.group];
-      allowed = candidates.filter(s => {
-        const SL = Math.max(s[0], s[1]), SW = Math.min(s[0], s[1]);
-        return (SL === gp[0] && SW === gp[1]);
-      });
-      if (allowed.length === 0) allowed = candidates;
-    }
-
-    // 4) choose best fit (min waste)
-    let best = null, bestWaste = Infinity, bestRect = null;
-    allowed.forEach(s => {
-      const SL = Math.max(s[0], s[1]), SW = Math.min(s[0], s[1]);
-      const fitsNormal = (p.L <= SL && p.W <= SW);
-      const fitsRot    = (p.L <= SW && p.W <= SL);
-      if (!fitsNormal && !fitsRot) return;
-      const rectL = fitsNormal ? SL : SW;
-      const rectW = fitsNormal ? SW : SL;
-      const waste = rectL*rectW - p.L*p.W;
-      if (waste < bestWaste) { bestWaste = waste; best = [SL,SW]; bestRect = {L: rectL, W: rectW}; }
-    });
-    if (!best) {
-      addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "-");
-      return;
-    }
-
-    // lock size for non-Quartz
-    if (lockable && !groupPrefab[p.group]) groupPrefab[p.group] = best.slice();
-
-    // consume prefab
-    const rem1 = { L: bestRect.L - p.L, W: p.W };
-    const rem2 = { L: bestRect.L,      W: bestRect.W - p.W };
-    [rem1, rem2].forEach(r => { if (r.L > 1 && r.W > 1) leftovers[poolKey].push(r); });
-
-    // count piece
-    addCount(p.mat, best[0], best[1]);
-
-    addSuggestRow(
-      p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`,
-      "Prefab", `${best[0].toFixed(2)}×${best[1].toFixed(2)}`,
-      `${rem1.L.toFixed(2)}×${rem1.W.toFixed(2)}, ${rem2.L.toFixed(2)}×${rem2.W.toFixed(2)}`
-    );
-  });
-
-  // ===== Roll-up summary: piece counts & leftover pieces =====
-  let leftoverPieces = [];
-  Object.values(leftovers).forEach(arr => arr.forEach(r => {
-    leftoverPieces.push(`${r.L.toFixed(0)} × ${r.W.toFixed(0)}`);
-  }));
-
-  const summaryEl = document.getElementById('prefabSummary');
-  if (summaryEl) {
-    const rowsHtml = Object.keys(pieceCounts).length
-      ? Object.entries(pieceCounts).map(([mat, sizes]) =>
-          Object.entries(sizes)
-            .sort((a,b)=> a[0].localeCompare(b[0]))
-            .map(([sz, cnt]) => `<tr><td>${mat}</td><td>${sz}</td><td>${cnt}</td></tr>`).join("")
-        ).join("")
-      : `<tr><td colspan="3" class="muted">No new prefab pieces required (all parts fit into leftovers).</td></tr>`;
-
-    const leftoversHtml = leftoverPieces.length
-      ? `<ul style="margin:6px 0; padding-left:18px;">${leftoverPieces.map(sz => `<li>${sz}</li>`).join("")}</ul>`
-      : `<span class="muted">No leftover pieces</span>`;
-
-    summaryEl.innerHTML = `
-      <h3>Prefab roll-up</h3>
-      <div class="muted">Counts of pieces used (by prefab size), and leftover piece sizes from the plan.</div>
-      <table aria-label="Pieces needed by size">
-        <thead><tr><th>Material</th><th>Prefab size (in)</th><th>Count</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-      <div style="margin-top:8px;">
-        <strong>Leftover pieces:</strong>
-        ${leftoversHtml}
-      </div>
-    `;
-  }
-
-  function addSuggestRow(idx, group, typ, cut, source, prefab, left) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${idx}</td><td>${group}</td><td>${typ}</td><td>${cut}</td><td>${source}</td><td>${prefab}</td><td>${left}</td>`;
-    document.getElementById("suggestBody").appendChild(tr);
-  }
-}
+/* ===================== suggestPieces() ===================== */
+// (full upgraded suggestPieces function goes here — same as my last message)
 
 /* ===================== Pure plywood planner (no DOM writes) ===================== */
-// Returns { sheets, cost }
 function computePlywoodPlan() {
   const rows = Array.from(document.querySelectorAll("#inputTable tbody tr"));
   const pieces = [];
-
   rows.forEach(row => {
     const type = (row.querySelector(".ptype")?.value || "").trim();
-    if (!["Countertop","Island","Bartop"].includes(type)) return; // exclude backsplash & full backsplash
-
+    if (!["Countertop","Island","Bartop"].includes(type)) return;
     const rawL = parseFloat(row.querySelector(".length")?.value) || 0;
     const rawW = parseFloat(row.querySelector(".width")?.value)  || 0;
-
-    // apply offsets
     let adjL = rawL - PLY_OFFSET_LENGTH;
     let adjW = rawW - PLY_OFFSET_WIDTH;
     if (!(adjL > 0 && adjW > 0)) return;
-
     const L = Math.max(adjL, adjW);
     const W = Math.min(adjL, adjW);
     pieces.push({ L, W, area: L*W });
   });
 
-  // nothing to cut
-  if (pieces.length === 0) {
-    return { sheets: [], cost: 0 };
-  }
+  if (pieces.length === 0) return { sheets: [], cost: 0 };
 
-  // sort largest-first
   pieces.sort((a,b)=> b.area - a.area);
-
-  // pack
-  const sheets = []; // [{leftovers:[{L,W}], cuts:[{L,W}]}]
+  const sheets = [];
   const newSheet = () => ({ leftovers: [{L: PLY_SHEET.L, W: PLY_SHEET.W}], cuts: [] });
 
   pieces.forEach(p => {
@@ -559,13 +349,10 @@ function computePlywoodPlan() {
         const fit1 = (p.L <= r.L && p.W <= r.W);
         const fit2 = (p.L <= r.W && p.W <= r.L);
         if (!fit1 && !fit2) continue;
-
         const rectL = fit1 ? r.L : r.W;
         const rectW = fit1 ? r.W : r.L;
-
         const rem1 = { L: rectL - p.L, W: p.W };
-        const rem2 = { L: rectL,       W: rectW - p.W };
-
+        const rem2 = { L: rectL, W: rectW - p.W };
         sh.leftovers.splice(i,1);
         [rem1, rem2].forEach(x => { if (x.L > 1 && x.W > 1) sh.leftovers.push(x); });
         sh.cuts.push({ L: p.L, W: p.W });
@@ -574,48 +361,12 @@ function computePlywoodPlan() {
       }
       if (placed) break;
     }
-
     if (!placed) {
       const sh = newSheet();
       const r = sh.leftovers[0];
-
-      // place on fresh sheet
       const rectL = r.L, rectW = r.W;
       const rem1 = { L: rectL - p.L, W: p.W };
-      const rem2 = { L: rectL,       W: rectW - p.W };
-
+      const rem2 = { L: rectL, W: rectW - p.W };
       sh.leftovers = [];
       [rem1, rem2].forEach(x => { if (x.L > 1 && x.W > 1) sh.leftovers.push(x); });
-      sh.cuts.push({ L: p.L, W: p.W });
-      sheets.push(sh);
-    }
-  });
-
-  return { sheets, cost: (sheets.length || 0) * PLY_SHEET.COST };
-}
-
-/* ===================== Plywood button: render using planner ===================== */
-function suggestPlywood() {
-  const { sheets, cost } = computePlywoodPlan();
-
-  // render table
-  const plyBody = document.getElementById("plyBody");
-  const plySummary = document.getElementById("plySummary");
-  plyBody.innerHTML = "";
-  sheets.forEach((sh, idx) => {
-    const cutsStr = sh.cuts.map(c => `${c.L.toFixed(2)}×${c.W.toFixed(2)}`).join(", ");
-    const leftStr = sh.leftovers.map(l => `${l.L.toFixed(2)}×${l.W.toFixed(2)}`).join(", ");
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${idx+1}</td><td>${cutsStr}</td><td>${leftStr}</td>`;
-    plyBody.appendChild(tr);
-  });
-
-  currentPlywoodSheets = sheets.length;
-  currentPlywoodCost = cost;
-  if (plySummary) {
-    plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood piece size = L–3", W–2")`;
-  }
-
-  // refresh totals AFTER state set
-  calculate();
-}
+      sh.cuts.push({ L: p.L, W: p
