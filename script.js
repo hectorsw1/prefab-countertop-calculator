@@ -263,7 +263,7 @@ function parseDimensions(text) {
   while ((match = dimPattern.exec(cleaned)) !== null) {
     const label = match[1] ? String(match[1]).trim() : "";
     const a = toInches(match[2]); // first number = Length
-       const b = toInches(match[3]); // second number = Width
+    const b = toInches(match[3]); // second number = Width
     const length = a;             // KEEP ORDER (do not rotate)
     const width  = b;
     results.push({ label, length, width });
@@ -313,11 +313,7 @@ function autoFillRows(parts) {
   }
 }
 
-/* ===================== Unified PREFAB packing helpers ===================== */
-// Global rules for ALL stones/types. Priorities:
-// 1) minimize number of slabs, 2) shrink to smallest prefab length that still holds cuts,
-// 3) reuse leftovers; always reuse leftovers first.
-// FullBacksplash is sourced ONLY from Countertop/Island/Bartop catalogs.
+/* ===================== PREFAB packing helpers ===================== */
 
 const WIDTH_BUCKET_STEP = 0.125; // 1/8" width tolerance
 
@@ -330,14 +326,14 @@ function asSL_SW(size) {
   return [SL, SW];
 }
 
-// === UPDATED: shared pool for Countertop & Island ===
+// === Shared pool for Countertop & Island ===
 function poolKeyForPack(mat, typ) {
   if (typ === "Countertop" || typ === "Island") return `${mat}|CT_ISL`;
   if (typ === "FullBacksplash") return `${mat}|FullBacksplash`;
   return `${mat}|${typ}`;
 }
 
-// === UPDATED: candidates reflect the shared pool rule and FBS sourcing ===
+// Candidates for each type (and shared pools)
 function getCandidatesFor(material, type) {
   if (type === "FullBacksplash") {
     // Can be cut from Countertop, Island, or Bartop
@@ -346,7 +342,7 @@ function getCandidatesFor(material, type) {
               PREFAB[material]?.Island     || [],
               PREFAB[material]?.Bartop     || []);
   }
-  if (type === "Countertop" || type === "Island") {
+  if (type === "Countertop" || type === "Island" || type === "CT_ISL") {
     // Shared pool of Countertop + Island
     return []
       .concat(PREFAB[material]?.Countertop || [],
@@ -357,7 +353,88 @@ function getCandidatesFor(material, type) {
     : [];
 }
 
-// Shrink each bin to the SMALLEST catalog length that still holds its cuts
+/* ---------- shrink bins (variable width aware) ---------- */
+function shrinkBinsVarWidth(bins, candidates) {
+  const cands = candidates.map(asSL_SW);
+  bins.forEach(b => {
+    if (b.nofit || !b.cuts?.length) return;
+    const usedL = b.cuts.reduce((a,c)=>a + c.cutL, 0);
+    const needW = b.cuts.reduce((m,c)=>Math.max(m, c.cutW), 0);
+    const best = cands
+      .filter(([SL,SW]) => SL + 1e-6 >= usedL && SW + 1e-6 >= needW)
+      .sort((a,b)=> a[0]-b[0])[0];
+    if (best) {
+      b.SL = best[0];
+      b.SW = best[1];
+      b.remaining = b.SL - usedL;
+    } else {
+      // fallback: keep current SL/SW and sync remaining
+      b.remaining = Math.max(0, (b.SL||0) - usedL);
+    }
+  });
+  return bins;
+}
+
+/* ---------- fewest slabs first for variable widths ---------- */
+function packFewestSlabsVarWidth(parts, candidates) {
+  const EPS = 1e-6;
+  const sizes = candidates.map(asSL_SW);
+
+  // index candidates by SW threshold for quick lookups
+  function maxSLFor(minW) {
+    let mx = -Infinity, swFor = null;
+    sizes.forEach(([SL,SW]) => {
+      if (SW + EPS >= minW && SL > mx) { mx = SL; swFor = SW; }
+    });
+    return mx > -Infinity ? {SL: mx, SW: swFor} : null;
+  }
+
+  const bins = [];
+  // Largest → smallest by AREA, then length (never rotate)
+  const list = parts.slice().sort((a,b)=>{
+    const aa = a.L*a.W, bb = b.L*b.W;
+    if (bb!==aa) return bb-aa;
+    return b.L - a.L;
+  });
+
+  for (const p of list) {
+    // try reuse: best-fit by remaining length AND width capacity
+    let bestIdx = -1, bestAfter = Infinity;
+    for (let i=0;i<bins.length;i++){
+      const b = bins[i];
+      if (b.nofit) continue;
+      if ((b.SW + EPS >= p.W) && (b.remaining + EPS >= p.L)) {
+        const after = b.remaining - p.L;
+        if (after < bestAfter) { bestAfter = after; bestIdx = i; }
+      }
+    }
+    if (bestIdx >= 0) {
+      bins[bestIdx].cuts.push({ part: p, cutL: p.L, cutW: p.W });
+      bins[bestIdx].remaining -= p.L;
+      continue;
+    }
+
+    // open new slab using the largest length that can satisfy required width
+    const open = maxSLFor(p.W);
+    if (!open) {
+      // no prefab can satisfy width requirement → nofit
+      bins.push({
+        SL: p.L, SW: p.W, remaining: 0, nofit: true,
+        cuts: [{ part: p, cutL: p.L, cutW: p.W, nofit: true }]
+      });
+      continue;
+    }
+    bins.push({
+      SL: open.SL, SW: open.SW,
+      remaining: open.SL - p.L,
+      cuts: [{ part: p, cutL: p.L, cutW: p.W }]
+    });
+  }
+
+  return shrinkBinsVarWidth(bins, candidates);
+}
+
+/* ---------- previous fixed-width planner (kept for non-CT/ISL) ---------- */
 function shrinkBins(bins, candidates, width) {
   const candsAsc = candidates
     .map(asSL_SW)
@@ -378,32 +455,20 @@ function shrinkBins(bins, candidates, width) {
   });
   return bins;
 }
-
-/* ========= CORE: Fewest slabs first → then shrink to smallest prefab ========= */
 function packFewestSlabsFirstFFD(partsW, candidates, width) {
   const EPS = 1e-6;
-
-  // Allowed prefab sizes that can accept this width (no rotation)
-  const sizes = candidates
-    .map(asSL_SW)
-    .filter(([SL, SW]) => SW + EPS >= width);
-
-  // If no prefab can accept this width, mark all as no-fit
+  const sizes = candidates.map(asSL_SW).filter(([SL,SW]) => SW + EPS >= width);
   if (!sizes.length) {
     return partsW.map(p => ({
       SL: p.L, SW: width, remaining: 0, nofit: true,
       cuts: [{ part: p, cutL: p.L, cutW: width, nofit: true }]
     }));
   }
-
-  // Minimize slab count first (pack into largest length), then shrink.
   const maxSL = Math.max(...sizes.map(([SL]) => SL));
-  const minSW = Math.min(...sizes.map(([SL, SW]) => SW)); // placeholder; real SW set by shrink
+  const minSW = Math.min(...sizes.map(([SL,SW]) => SW));
 
-  // Longest-first list (never rotate L×W)
-  const parts = partsW.slice().sort((a, b) => b.L - a.L);
-  const bins = []; // { SL, SW, remaining, cuts[], nofit? }
-
+  const parts = partsW.slice().sort((a,b)=> b.L - a.L);
+  const bins = [];
   for (const p of parts) {
     if (p.L - EPS > maxSL) {
       bins.push({
@@ -412,10 +477,8 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
       });
       continue;
     }
-
-    // Try to reuse leftovers first: best-fit (smallest remaining that fits)
     let bestIdx = -1, bestAfter = Infinity;
-    for (let i = 0; i < bins.length; i++) {
+    for (let i=0;i<bins.length;i++){
       const b = bins[i];
       if (b.nofit) continue;
       if (b.remaining + EPS >= p.L) {
@@ -423,29 +486,21 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
         if (after < bestAfter) { bestAfter = after; bestIdx = i; }
       }
     }
-
     if (bestIdx >= 0) {
       bins[bestIdx].cuts.push({ part: p, cutL: p.L, cutW: width });
       bins[bestIdx].remaining -= p.L;
     } else {
       bins.push({
-        SL: maxSL,
-        SW: minSW,               // placeholder; corrected in shrink step
+        SL: maxSL, SW: minSW,
         remaining: maxSL - p.L,
         cuts: [{ part: p, cutL: p.L, cutW: width }]
       });
     }
   }
-
   return shrinkBins(bins, candidates, width);
 }
 
-// Use the new strategy for all buckets
-function planForBucket(partsW, candidates, width) {
-  return packFewestSlabsFirstFFD(partsW, candidates, width);
-}
-
-/* ===================== Suggest Prefab Pieces (unified rules) ===================== */
+/* ===================== Suggest Prefab Pieces ===================== */
 function suggestPieces() {
   const suggestBody = document.getElementById("suggestBody");
   suggestBody.innerHTML = "";
@@ -463,15 +518,22 @@ function suggestPieces() {
   });
   if (!parts.length) return;
 
-  // Group by (material/type pool) and width bucket
-  const pools = new Map(); // poolKey -> Map(widthKey -> part[])
+  // Build pools:
+  // - CT/ISL: single combined array (variable width planning)
+  // - Others: Map(widthKey -> array) as before
+  const pools = new Map(); // poolKey -> array OR Map
   parts.forEach(p => {
-    const pkey = poolKeyForPack(p.mat, p.typ);
-    if (!pools.has(pkey)) pools.set(pkey, new Map());
-    const wkey = bucketWidthKey(p.W);
-    const byW = pools.get(pkey);
-    if (!byW.has(wkey)) byW.set(wkey, []);
-    byW.get(wkey).push(p);
+    const key = poolKeyForPack(p.mat, p.typ);
+    if (key.endsWith("CT_ISL")) {
+      if (!pools.has(key)) pools.set(key, []);
+      pools.get(key).push(p);
+    } else {
+      if (!pools.has(key)) pools.set(key, new Map());
+      const wkey = bucketWidthKey(p.W);
+      const byW = pools.get(key);
+      if (!byW.has(wkey)) byW.set(wkey, []);
+      byW.get(wkey).push(p);
+    }
   });
 
   // Roll-up accumulators
@@ -489,38 +551,75 @@ function suggestPieces() {
     suggestBody.appendChild(tr);
   };
 
-  // Plan per pool & width bucket
-  pools.forEach((byWidth) => {
-    byWidth.forEach((partsW) => {
-      const width = partsW[0].W;
-      const { mat, typ } = partsW[0];
+  // Plan per pool
+  pools.forEach((bucket, pkey) => {
+    const [mat, typKey] = pkey.split("|");
 
-      const candidates = getCandidatesFor(mat, typ);
+    // CT/ISL combined variable-width path
+    if (typKey === "CT_ISL") {
+      const candidates = getCandidatesFor(mat, "CT_ISL");
+      const bins = packFewestSlabsVarWidth(bucket, candidates);
+
+      const placements = new Map();
+      bins.forEach((b, bi) => {
+        if (!b.nofit && b.SL && b.SW) addCount(mat, b.SL, b.SW);
+
+        const rem = Math.max(0, b.remaining || 0);
+        if (rem > 1) leftoverPieces.push(`${rem.toFixed(0)} × ${b.SW.toFixed(0)} (Piece #${bi+1})`);
+
+        let running = b.SL ?? 0;
+        (b.cuts || []).forEach(c => {
+          running -= c.cutL;
+          const cutStr = `${c.cutL.toFixed(2)}×${c.cutW.toFixed(2)}`;
+          const prefabStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})` : "-";
+          const leftStr = b.SL
+            ? `${Math.max(0, running).toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})`
+            : "-";
+          const arr = placements.get(c.part.idx) || [];
+          arr.push({ group: c.part.group || "", typ: c.part.typ, cutStr, prefabStr, leftStr, nofit: c.nofit });
+          placements.set(c.part.idx, arr);
+        });
+      });
+
+      bucket.slice().sort((a,b)=>a.idx-b.idx).forEach(p => {
+        const arr = placements.get(p.idx);
+        if (!arr || !arr.length) {
+          addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "-");
+        } else {
+          arr.forEach((pl, j) => {
+            const source = pl.nofit ? "No fit" : (j === 0 ? "Prefab" : "Leftover");
+            addSuggestRow(p.idx, p.group, p.typ, pl.cutStr, source, pl.prefabStr, pl.leftStr);
+          });
+        }
+      });
+
+      return; // done with CT/ISL pool
+    }
+
+    // ---------- original fixed-width path for other types ----------
+    bucket.forEach((partsW) => {
+      const width = partsW[0].W;
+      const { mat: _m, typ } = partsW[0];
+      const candidates = getCandidatesFor(_m, typ);
       if (!candidates || !candidates.length) {
         partsW.forEach(p => addSuggestRow(p.idx, p.group, p.typ,
           `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "-"));
         return;
       }
+      const bins = packFewestSlabsFirstFFD(partsW, candidates, width);
 
-      const bins = planForBucket(partsW, candidates, width);
-
-      // Build placement lookup and roll-up
-      const placements = new Map(); // part.idx -> [{...}]
+      const placements = new Map();
       bins.forEach((b, bi) => {
-        if (!b.nofit && b.SL && b.SW) addCount(mat, b.SL, b.SW);
+        if (!b.nofit && b.SL && b.SW) addCount(_m, b.SL, b.SW);
 
-        // === LABELED final leftover per slab for roll-up ===
         const rem = Math.max(0, b.remaining || 0);
-        if (rem > 1) {
-          leftoverPieces.push(`${rem.toFixed(0)} × ${width.toFixed(0)} (Piece #${bi+1})`);
-        }
+        if (rem > 1) leftoverPieces.push(`${rem.toFixed(0)} × ${width.toFixed(0)} (Piece #${bi+1})`);
 
         let running = b.SL ?? 0;
         (b.cuts || []).forEach(c => {
           running -= c.cutL;
           const cutStr = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
           const prefabStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})` : "-";
-          // === LABELED leftover after this cut ===
           const leftStr = b.SL
             ? `${Math.max(0, running).toFixed(2)}×${width.toFixed(2)} (Piece #${bi+1})`
             : "-";
@@ -530,7 +629,6 @@ function suggestPieces() {
         });
       });
 
-      // Render in original row order
       partsW.slice().sort((a,b)=>a.idx-b.idx).forEach(p => {
         const arr = placements.get(p.idx);
         if (!arr || !arr.length) {
@@ -578,7 +676,6 @@ function suggestPieces() {
 }
 
 /* ===================== Pure plywood planner (no DOM writes) ===================== */
-// Returns { sheets, cost }
 function computePlywoodPlan() {
   const rows = Array.from(document.querySelectorAll("#inputTable tbody tr"));
   const pieces = [];
