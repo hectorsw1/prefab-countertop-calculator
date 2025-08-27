@@ -545,19 +545,110 @@ function suggestPieces() {
   };
 
   // Plan per pool & width bucket
-  pools.forEach((byWidth) => {
-    byWidth.forEach((partsW) => {
-      const width = partsW[0].W;
-      const { mat, typ } = partsW[0];
+  pools.forEach((byWidth, poolKey) => {
+  // Sort width buckets from WIDEST → NARROWEST
+  const widthKeys = Array.from(byWidth.keys())
+    .map(Number)
+    .sort((a, b) => b - a);
 
-      const candidates = getCandidatesFor(mat, typ);
-      if (!candidates || !candidates.length) {
-        partsW.forEach(p => addSuggestRow(p.idx, p.group, p.typ,
+  // Carry open bins across narrower widths
+  let carryBins = [];
+  // We also need to accumulate placements across widths
+  const globalPlacements = new Map();
+
+  widthKeys.forEach((wk) => {
+    const partsW = byWidth.get(wk);
+    if (!partsW || !partsW.length) return;
+
+    const width = partsW[0].W;
+    const { mat, typ } = partsW[0];
+    const candidates = getCandidatesFor(mat, typ);
+
+    if (!candidates.length) {
+      partsW.forEach(p =>
+        addSuggestRow(p.idx, p.group, p.typ,
           `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "—"));
-        return;
-      }
+      return;
+    }
 
-      const bins = planForBucket(partsW, candidates, width);
+    // 1) Try to place into existing (wider) open bins first
+    const remaining = [];
+    partsW
+      .slice()
+      .sort((a,b)=> b.L - a.L) // longest first
+      .forEach(p => {
+        // Try to fit into any existing bin whose SW >= width
+        let placed = false;
+        for (let i = 0; i < carryBins.length && !placed; i++) {
+          const b = carryBins[i];
+          if ((b.SW + 1e-6 >= width) && (b.remaining + 1e-6 >= p.L)) {
+            b.cuts.push({ part: p, cutL: p.L, cutW: width });
+            b.remaining -= p.L;
+            if (!b.rowIdxs) b.rowIdxs = new Set();
+            b.rowIdxs.add(p.idx);
+            placed = true;
+          }
+        }
+        if (!placed) remaining.push(p);
+      });
+
+    // 2) For the rest, open new bins with the minimal-slab algorithm
+    let newBins = [];
+    if (remaining.length) {
+      newBins = planForBucket(remaining, candidates, width);
+    }
+
+    // 3) After we have all bins (old + new), shrink lengths to minimal catalog
+    carryBins = shrinkBins(carryBins.concat(newBins), candidates, width);
+
+    // 4) Build per-part placements for THIS width (we’ll render after loop)
+    carryBins.forEach((b, bi) => {
+      // count pieces for roll-up
+      if (!b.nofit && b.SL && b.SW) addCount(mat, b.SL, b.SW);
+
+      let running = b.SL ?? 0;
+      const rowsUsed = b.rowIdxs ? Array.from(b.rowIdxs).sort((x,y)=>x-y).join(", ") : "";
+      (b.cuts || []).forEach((c, ci) => {
+        // Only log entries whose width equals this bucket (avoid double logging)
+        if (Math.abs(c.cutW - width) > 1e-5) return;
+
+        running -= c.cutL;
+        const isLast = ci === (b.cuts.length - 1);
+        const pieceTag = rowsUsed ? `(Piece #${bi+1}; Rows ${rowsUsed})` : `(Piece #${bi+1})`;
+        const cutStr   = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
+        const prefabStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} ${pieceTag}` : "-";
+
+        let leftStr = "—";
+        const remVal = Math.max(0, running);
+        if (b.SL && isLast && remVal > 0) {
+          leftStr = `${remVal.toFixed(2)}×${width.toFixed(2)} ${pieceTag}`;
+          leftoverPieces.push(`${remVal.toFixed(0)} × ${width.toFixed(0)} ${pieceTag}`);
+        }
+
+        const arr = globalPlacements.get(c.part.idx) || [];
+        arr.push({ group: c.part.group, typ: c.part.typ, cutStr, prefabStr, leftStr, nofit: c.nofit });
+        globalPlacements.set(c.part.idx, arr);
+      });
+    });
+
+    // Render rows belonging to THIS width bucket in original row order
+    partsW.slice().sort((a,b)=>a.idx-b.idx).forEach(p => {
+      const arr = globalPlacements.get(p.idx);
+      if (!arr || !arr.length) {
+        addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "—");
+      } else {
+        // show the entries we just added for this width (filter by cut width)
+        arr
+          .filter(pl => pl.cutStr.endsWith(`×${width.toFixed(2)}`))
+          .forEach((pl, j) => {
+            const source = pl.nofit ? "No fit" : (j === 0 ? "Prefab" : "Leftover");
+            addSuggestRow(p.idx, p.group, p.typ, pl.cutStr, source, pl.prefabStr, pl.leftStr);
+          });
+      }
+    });
+  });
+});
+
 
       // Build placement lookup and roll-up (labeled, final-only leftovers + rows)
       const placements = new Map(); // part.idx -> [{...}]
