@@ -60,7 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('blur', clamp);
   });
 
-  document.getElementById('oversizeFeeInput')?.addEventListener('input', calculate);
+  const feeInput = document.getElementById('oversizeFeeInput');
+  if (feeInput) feeInput.addEventListener('input', calculate);
 
   const tbody = document.getElementById('tableBody');
   tbody.addEventListener('input', e => {
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   calculate();
 });
 
-/* ===================== Table helpers ===================== */
+/* ===================== Table & helpers ===================== */
 function ensureRows(n) {
   const tbody = document.getElementById('tableBody');
   const cur = tbody.querySelectorAll('tr').length;
@@ -133,7 +134,7 @@ function getSinkAddonsSplit() {
   return { kitchen, bathroom, total: kitchen + bathroom };
 }
 
-/* ===================== Calculate totals ===================== */
+/* ===================== Calculate ===================== */
 function calculate() {
   // keep plywood totals in sync
   const { sheets, cost } = computePlywoodPlan();
@@ -150,17 +151,15 @@ function calculate() {
     const typ  = row.querySelector('.ptype')?.value || 'Countertop';
     const ref  = parseFloat(row.querySelector('.refab')?.value) || 0;
 
-    const sqft = Math.ceil((L * W) / 144);
+    const sqft = Math.ceil((L*W)/144);
     let sinkCost = 0;
-    if (sink === 'kitchen_sink') sinkCost = 180;
-    else if (sink === 'bathroom_sink' || sink === 'bar_sink') sinkCost = 80;
+    if (sink==='kitchen_sink') sinkCost=180;
+    else if (sink==='bathroom_sink' || sink==='bar_sink') sinkCost=80;
 
-    let extras = sinkCost + ref * REFAB_RATE;
-    if (typ === 'Island' && L >= ISLAND_SURCHARGE_L && W >= ISLAND_SURCHARGE_W) {
-      extras += ISLAND_SURCHARGE_COST;
-    }
+    let extras = sinkCost + ref*REFAB_RATE;
+    if (typ==='Island' && L>=ISLAND_SURCHARGE_L && W>=ISLAND_SURCHARGE_W) extras += ISLAND_SURCHARGE_COST;
 
-    const labor = sqft * LABOR_RATE;
+    const labor = sqft*LABOR_RATE;
     const total = labor + extras;
 
     row.querySelector('.sqft').textContent   = sqft.toFixed(2);
@@ -168,16 +167,20 @@ function calculate() {
     row.querySelector('.extras').textContent = extras.toFixed(2);
     row.querySelector('.total').textContent  = total.toFixed(2);
 
-    sumSqft += sqft; sumLabor += labor; sumExtras += extras; sumTotal += total;
+    sumSqft+=sqft; sumLabor+=labor; sumExtras+=extras; sumTotal+=total;
   });
 
   const addons = getSinkAddonsSplit();
   const oversizeFee = Number(document.getElementById('oversizeFeeInput')?.value || 0) || 0;
 
-  document.getElementById('totalSqft').textContent   = sumSqft.toFixed(2);
-  document.getElementById('totalLabor').textContent  = sumLabor.toFixed(2);
-  document.getElementById('totalExtras').textContent = sumExtras.toFixed(2);
-  document.getElementById('totalCost').textContent   = (sumTotal + addons.total + currentPlywoodCost + oversizeFee).toFixed(2);
+  const tSq = document.getElementById('totalSqft');
+  const tLa = document.getElementById('totalLabor');
+  const tEx = document.getElementById('totalExtras');
+  const tTo = document.getElementById('totalCost');
+  if (tSq) tSq.textContent = sumSqft.toFixed(2);
+  if (tLa) tLa.textContent = sumLabor.toFixed(2);
+  if (tEx) tEx.textContent = sumExtras.toFixed(2);
+  if (tTo) tTo.textContent = (sumTotal + addons.total + currentPlywoodCost + oversizeFee).toFixed(2);
 
   // totals card
   let kInst=0, bInst=0, fab=0;
@@ -186,17 +189,23 @@ function calculate() {
     if (sink==='kitchen_sink') kInst+=180;
     else if (sink==='bathroom_sink') bInst+=80;
     else if (sink==='bar_sink') kInst+=80;
-    fab += (parseFloat(row.querySelector('.refab')?.value)||0) * REFAB_RATE;
+    fab += (parseFloat(row.querySelector('.refab')?.value)||0)*REFAB_RATE;
   });
-  document.getElementById('kitchenSinkInstall').textContent = `$${(kInst + addons.kitchen).toFixed(2)}`;
-  document.getElementById('bathSinkInstall').textContent    = `$${(bInst + addons.bathroom).toFixed(2)}`;
-  document.getElementById('installationCost').textContent   = `$${sumLabor.toFixed(2)}`;
-  document.getElementById('fabricationCost').textContent    = `$${fab.toFixed(2)}`;
-  document.getElementById('plywoodCost').textContent        = `$${currentPlywoodCost.toFixed(2)}`;
-  document.getElementById('grandTotal').textContent         = `$${(sumTotal + addons.kitchen + addons.bathroom + currentPlywoodCost + oversizeFee).toFixed(2)}`;
+  const kEl = document.getElementById('kitchenSinkInstall');
+  const bEl = document.getElementById('bathSinkInstall');
+  const iEl = document.getElementById('installationCost');
+  const fEl = document.getElementById('fabricationCost');
+  const pEl = document.getElementById('plywoodCost');
+  const gEl = document.getElementById('grandTotal');
+  if (kEl) kEl.textContent = `$${(kInst + addons.kitchen).toFixed(2)}`;
+  if (bEl) bEl.textContent = `$${(bInst + addons.bathroom).toFixed(2)}`;
+  if (iEl) iEl.textContent = `$${sumLabor.toFixed(2)}`;
+  if (fEl) fEl.textContent = `$${fab.toFixed(2)}`;
+  if (pEl) pEl.textContent = `$${currentPlywoodCost.toFixed(2)}`;
+  if (gEl) gEl.textContent = `$${(sumTotal + addons.kitchen + addons.bathroom + currentPlywoodCost + oversizeFee).toFixed(2)}`;
 }
 
-/* ===================== Packing (fewest slabs → minimal size; cross-width reuse) ===================== */
+/* ===================== Packing (fewest slabs → upgrade → final shrink; cross-width reuse) ===================== */
 const WIDTH_BUCKET_STEP = 0.125; // 1/8"
 function bucketWidthKey(w){ return (Math.round(w/WIDTH_BUCKET_STEP)*WIDTH_BUCKET_STEP).toFixed(3); }
 function asSL_SW(s){ return [Math.max(s[0],s[1]), Math.min(s[0],s[1])]; }
@@ -211,7 +220,7 @@ function getCandidatesFor(material, type){
               PREFAB[material]?.Island||[],
               PREFAB[material]?.Bartop||[]);
   }
-  // Others can use any family (width check will gate feasibility)
+  // Others can use any family (width check gates feasibility)
   return []
     .concat(PREFAB[material]?.Countertop||[],
             PREFAB[material]?.Island||[],
@@ -219,59 +228,58 @@ function getCandidatesFor(material, type){
             PREFAB[material]?.Backsplash||[]);
 }
 
-function placeIntoOpenBins(openBins, part, width){
-  // Best-fit into any open bin whose SW >= width and remaining >= L
-  let bestIdx=-1, bestAfter=Infinity;
-  for (let i=0;i<openBins.length;i++){
-    const b=openBins[i];
-    if (b.SW+1e-6>=width && b.remaining+1e-6>=part.L){
-      const after=b.remaining-part.L;
-      if (after<bestAfter){bestAfter=after; bestIdx=i;}
-    }
-  }
-  if (bestIdx>=0){
-    const bin=openBins[bestIdx];
+/* ---------- Bin helpers ---------- */
+// Create a new bin from candidates for a given width and initial length need
+function openBin(candsSW, needL){
+  // candsSW: array of {SL,SW} already filtered/sorted ASC by SL
+  const chosen = candsSW.find(c => c.SL + 1e-6 >= needL);
+  if (!chosen) return null;
+  return {
+    SL: chosen.SL,         // catalog length chosen (can upgrade later)
+    SW: chosen.SW,         // catalog short side (width)
+    remaining: chosen.SL - needL,
+    cuts: [],              // [{part, cutL, cutW}]
+    rowIdxs: new Set(),    // rows used
+    used: needL,           // total length used so far
+    // Keep full ladder of upgrade options (same SW)
+    ladder: candsSW.map(c => c.SL).sort((a,b)=>a-b)
+  };
+}
+
+// Try place part in bin; if not enough remaining, try to "upgrade" the bin SL
+function tryPlaceOrUpgrade(bin, part, width){
+  if (bin.SW + 1e-6 < width) return false;
+  if (bin.remaining + 1e-6 >= part.L){
+    // fits as-is
     bin.cuts.push({ part, cutL: part.L, cutW: width });
     bin.remaining -= part.L;
+    bin.used += part.L;
+    bin.rowIdxs.add(part.idx);
+    return true;
+  }
+  // consider upgrade
+  const needTotal = bin.used + part.L;
+  const nextSL = bin.ladder.find(SL => SL + 1e-6 >= needTotal);
+  if (nextSL && nextSL > bin.SL + 1e-6) {
+    // upgrade bin
+    bin.remaining = nextSL - needTotal;
+    bin.SL = nextSL;
+    bin.cuts.push({ part, cutL: part.L, cutW: width });
+    bin.used = needTotal;
     bin.rowIdxs.add(part.idx);
     return true;
   }
   return false;
 }
 
-function packSingleSlabIfPossible(partsW, candidates, width){
-  const sumL = partsW.reduce((a,p)=>a+p.L,0);
-  const cands = candidates.map(asSL_SW).filter(([SL,SW])=>SW+1e-6>=width).sort((a,b)=>a[0]-b[0]);
-  const chosen = cands.find(([SL])=>SL+1e-6>=sumL);
-  if (!chosen) return null;
-  const [SL,SW]=chosen; let rem=SL; const rows=new Set(); const cuts=[];
-  partsW.slice().sort((a,b)=>b.L-a.L).forEach(p=>{cuts.push({part:p,cutL:p.L,cutW:width}); rem-=p.L; rows.add(p.idx);});
-  return [{ SL, SW, remaining: rem, cuts, rowIdxs: rows }];
-}
-
-function packMultiSizeFFD(partsW, candidates, width){
-  const parts = partsW.slice().sort((a,b)=>b.L-a.L);
-  const cands = candidates.map(asSL_SW).filter(([SL,SW])=>SW+1e-6>=width).sort((a,b)=>a[0]-b[0]);
-  const bins=[];
-  parts.forEach(p=>{
-    if (placeIntoOpenBins(bins,p,width)) return;
-    const chosen=cands.find(([SL])=>SL+1e-6>=p.L);
-    if (!chosen){
-      bins.push({SL:p.L,SW:width,remaining:0,cuts:[{part:p,cutL:p.L,cutW:width,nofit:true}],rowIdxs:new Set([p.idx])});
-      return;
-    }
-    const [SL,SW]=chosen;
-    bins.push({SL,SW,remaining:SL-p.L,cuts:[{part:p,cutL:p.L,cutW:width}],rowIdxs:new Set([p.idx])});
-  });
-  return bins;
-}
-
-function shrinkBins(bins, candidates, width){
-  const cands = candidates.map(asSL_SW).filter(([SL,SW])=>SW+1e-6>=width).sort((a,b)=>a[0]-b[0]);
+// Final shrink all bins to minimal catalog length that fits "used"
+function finalShrink(bins){
   bins.forEach(b=>{
-    const used = b.cuts.reduce((a,c)=>a+c.cutL,0);
-    const best = cands.find(([SL])=>SL+1e-6>=used);
-    if (best && best[0] < b.SL) { b.SL = best[0]; b.SW = best[1]; b.remaining = b.SL - used; }
+    const best = b.ladder.find(SL => SL + 1e-6 >= b.used);
+    if (best && best < b.SL - 1e-6){
+      b.SL = best;
+      b.remaining = b.SL - b.used;
+    }
   });
   return bins;
 }
@@ -318,75 +326,143 @@ function suggestPieces(){
     suggestBody.appendChild(tr);
   };
 
+  // For each MATERIAL pool:
   pools.forEach((byWidth) => {
-    // Sort width buckets numerically (strings → numbers) widest → narrowest
-    const widthKeys = Array.from(byWidth.keys()).sort((a,b)=>parseFloat(b)-parseFloat(a));
+    // Prepare one set of "open bins" carried across widths
+    let bins = []; // each has ladder & can be upgraded later
 
-    let carryBins = [];
-    const placements = new Map(); // part.idx -> [{...}]
+    // Process width buckets numerically (widest → narrowest)
+    const widthKeys = Array.from(byWidth.keys()).sort((a,b)=>parseFloat(b)-parseFloat(a));
+    // Keep placements to render in original row order
+    const placements = new Map(); // part.idx -> [{cutStr,prefStr,leftStr,source,_binIndex,_width}]
 
     widthKeys.forEach(wk => {
-      const partsW = byWidth.get(wk) || [];
+      const partsW = (byWidth.get(wk)||[]).slice().sort((a,b)=>b.L-a.L); // longest first
       if (!partsW.length) return;
 
       const width = partsW[0].W;
       const { mat, typ } = partsW[0];
-      const candidates = getCandidatesFor(mat, typ);
-      if (!candidates.length){
+
+      // Build candidates for this width; ladder per SW
+      const cand = getCandidatesFor(mat, typ)
+        .map(asSL_SW)
+        .filter(([SL,SW]) => SW + 1e-6 >= width);
+
+      if (!cand.length){
         partsW.forEach(p=>addRow(p.idx,p.group,p.typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,'No fit','-','—'));
         return;
       }
 
-      // 1) place into existing (wider) open bins first
-      const remaining=[];
-      partsW.slice().sort((a,b)=>b.L-a.L).forEach(p=>{
-        if (!placeIntoOpenBins(carryBins,p,width)) remaining.push(p);
+      // Group candidates by SW so upgrades preserve SW
+      const cBySW = new Map(); // SW -> [{SL,SW}]
+      cand.forEach(([SL,SW])=>{
+        const arr = cBySW.get(SW) || [];
+        arr.push({SL,SW});
+        cBySW.set(SW, arr);
+      });
+      cBySW.forEach(arr => arr.sort((a,b)=>a.SL-b.SL));
+
+      // For each part at this width:
+      partsW.forEach(p=>{
+        // 1) Try to place/upgrade into any existing bin (best-fit: minimal leftover after placement/upgrade)
+        let bestIdx = -1, bestAfter = Infinity;
+        bins.forEach((b, i)=>{
+          if (b.SW + 1e-6 < width) return;
+          let after = Infinity;
+          if (b.remaining + 1e-6 >= p.L){
+            after = b.remaining - p.L;
+          } else {
+            const needTotal = b.used + p.L;
+            const nextSL = b.ladder.find(SL => SL + 1e-6 >= needTotal);
+            if (nextSL) after = nextSL - needTotal;
+          }
+          if (after < bestAfter){
+            bestAfter = after;
+            bestIdx = i;
+          }
+        });
+
+        if (bestIdx >= 0 && tryPlaceOrUpgrade(bins[bestIdx], p, width)) {
+          // placed (maybe upgraded existing bin)
+          return;
+        }
+
+        // 2) Open a new bin: prefer wider SW (better future reuse), with minimal SL that fits
+        const SWs = Array.from(cBySW.keys()).sort((a,b)=>b-a); // wider first
+        let opened = false;
+        for (const SW of SWs){
+          const ladder = cBySW.get(SW);
+          const b = openBin(ladder, p.L);
+          if (b){
+            b.cuts.push({ part:p, cutL:p.L, cutW:width });
+            b.rowIdxs.add(p.idx);
+            bins.push(b);
+            opened = true;
+            break;
+          }
+        }
+        if (!opened){
+          // Shouldn't happen if cand non-empty, but guard
+          addRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${width.toFixed(2)}`, 'No fit', '-', '—');
+        }
       });
 
-      // 2) open new bins for the rest; prefer single-slab if possible
-      let newBins=[];
-      if (remaining.length){
-        const single = packSingleSlabIfPossible(remaining, candidates, width);
-        newBins = single ? single : packMultiSizeFFD(remaining, candidates, width);
-      }
-
-      // 3) shrink to smallest viable catalog lengths
-      carryBins = shrinkBins(carryBins.concat(newBins), candidates, width);
-
-      // 4) record placements & final-only leftovers
-      carryBins.forEach((b, bi) => {
-        if (b.SL && b.SW) addCount(mat, b.SL, b.SW);
-        let running = b.SL ?? 0;
+      // Record placements (we'll print leftovers after final shrink)
+      bins.forEach((b, bi)=>{
         const rowsUsed = b.rowIdxs ? Array.from(b.rowIdxs).sort((x,y)=>x-y).join(', ') : '';
-        (b.cuts || []).forEach((c, ci) => {
-          if (Math.abs(c.cutW - width) > 1e-5) return; // only this width bucket
-          running -= c.cutL;
-          const isLast = ci === (b.cuts.length - 1);
-          const tag = rowsUsed ? `(Piece #${bi+1}; Rows ${rowsUsed})` : `(Piece #${bi+1})`;
-          const cutStr  = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
-          const prefStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} ${tag}` : '-';
-
-          let leftStr = '—';
-          const rem = Math.max(0, running);
-          if (b.SL && isLast && rem > 0) {
-            leftStr = `${rem.toFixed(2)}×${width.toFixed(2)} ${tag}`;
-            leftoverPieces.push(`${rem.toFixed(0)} × ${width.toFixed(0)} ${tag}`);
-          }
-
+        const tag = rowsUsed ? `(Piece #${bi+1}; Rows ${rowsUsed})` : `(Piece #${bi+1})`;
+        (b.cuts||[]).forEach(c=>{
+          if (Math.abs(c.cutW - width) > 1e-5) return;
+          const cutStr = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
+          const prefStr = `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} ${tag}`; // will be updated logically by leftovers only
           const arr = placements.get(c.part.idx) || [];
-          arr.push({ group:c.part.group, typ:c.part.typ, cutStr, prefStr, leftStr });
+          arr.push({ cutStr, prefStr, _binIndex: bi, _width: width });
           placements.set(c.part.idx, arr);
         });
       });
+    });
 
-      // 5) render rows (original order) for this width
-      partsW.slice().sort((a,b)=>a.idx-b.idx).forEach(p=>{
-        const arr = (placements.get(p.idx)||[]).filter(pl => pl.cutStr.endsWith(`×${width.toFixed(2)}`));
-        if (!arr.length) {
-          addRow(p.idx,p.group,p.typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,'No fit','-','—');
-        } else {
-          arr.forEach((pl,j)=>addRow(p.idx,p.group,p.typ,pl.cutStr, j===0?'Prefab':'Leftover', pl.prefStr, pl.leftStr));
+    // Final shrink AFTER all widths are processed for this material pool
+    finalShrink(bins);
+
+    // Count pieces by final sizes
+    bins.forEach(b=>{
+      if (b.SL && b.SW) addCount(parts[0].mat, b.SL, b.SW);
+    });
+
+    // Render rows per part in input order and compute final leftovers (only once per piece-width)
+    const printedLeftoverForBinWidth = new Set(); // `${bi}@${width}`
+    Array.from(placements.keys()).sort((a,b)=>a-b).forEach(idx=>{
+      const arr = placements.get(idx) || [];
+      arr.forEach((pl, j) => {
+        const bi = pl._binIndex;
+        const width = pl._width;
+        const b = bins[bi];
+
+        // recompute piece tag with final sizes
+        const rowsUsed = b.rowIdxs ? Array.from(b.rowIdxs).sort((x,y)=>x-y).join(', ') : '';
+        const tag = rowsUsed ? `(Piece #${bi+1}; Rows ${rowsUsed})` : `(Piece #${bi+1})`;
+        const prefStr = `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} ${tag}`;
+
+        // print leftover once per (bin,width) — after the last cut at that width
+        let leftStr = '—';
+        const key = `${bi}@${width.toFixed(3)}`;
+        if (!printedLeftoverForBinWidth.has(key)) {
+          const cutsThisWidth = (b.cuts||[]).filter(c => Math.abs(c.cutW - width) < 1e-5);
+          const usedOnWidth = cutsThisWidth.reduce((s,c)=>s + c.cutL, 0);
+          const totalUsedBeforeThisWidth = (b.cuts||[]).reduce((s,c)=> s + (c.cutW < width ? c.cutL : 0), 0);
+          const tail = Math.max(0, b.SL - (totalUsedBeforeThisWidth + usedOnWidth));
+          if (tail > 0){
+            leftStr = `${tail.toFixed(2)}×${width.toFixed(2)} ${tag}`;
+            leftoverPieces.push(`${tail.toFixed(0)} × ${width.toFixed(0)} ${tag}`);
+          }
+          printedLeftoverForBinWidth.add(key);
         }
+
+        // Render the table row
+        const part = parts.find(p=>p.idx===idx);
+        const source = (j===0) ? 'Prefab' : 'Leftover';
+        addRow(idx, part?.group||'', part?.typ||'', pl.cutStr, source, prefStr, leftStr);
       });
     });
   });
@@ -415,77 +491,107 @@ function suggestPieces(){
   }
 }
 
-/* ===================== Plywood (unchanged logic) ===================== */
+/* ===================== Plywood (unchanged) ===================== */
 // Returns { sheets, cost }
 function computePlywoodPlan(){
   const rows = Array.from(document.querySelectorAll('#inputTable tbody tr'));
   const pieces=[];
   rows.forEach(row=>{
-    const type=(row.querySelector('.ptype')?.value||'').trim();
-    if (!['Countertop','Island','Bartop'].includes(type)) return;
-    const rawL=parseFloat(row.querySelector('.length')?.value)||0;
-    const rawW=parseFloat(row.querySelector('.width')?.value)||0;
-    const adjL=rawL-PLY_OFFSET_LENGTH, adjW=rawW-PLY_OFFSET_WIDTH;
-    if (!(adjL>0 && adjW>0)) return;
-    const L=Math.max(adjL,adjW), W=Math.min(adjL,adjW);
-    pieces.push({ L, W, area:L*W });
-  });
-  if (!pieces.length) return { sheets:[], cost:0 };
-  pieces.sort((a,b)=>b.area-a.area);
+    const type = (row.querySelector('.ptype')?.value||'').trim();
+    if (!['Countertop','Island','Bartop'].includes(type)) return; // exclude backsplash
+    const rawL = parseFloat(row.querySelector('.length')?.value)||0;
+    const rawW = parseFloat(row.querySelector('.width')?.value)||0;
 
-  const sheets=[];
-  const newSheet = () => ({ leftovers:[{L:PLY_SHEET.L, W:PLY_SHEET.W}], cuts:[] });
+    // apply offsets
+    let adjL = rawL - PLY_OFFSET_LENGTH;
+    let adjW = rawW - PLY_OFFSET_WIDTH;
+    if (!(adjL > 0 && adjW > 0)) return;
+
+    const L = Math.max(adjL, adjW);
+    const W = Math.min(adjL, adjW);
+    pieces.push({ L, W, area: L*W });
+  });
+
+  if (!pieces.length) return { sheets: [], cost: 0 };
+  pieces.sort((a,b)=> b.area - a.area);
+
+  // pack
+  const sheets = []; // [{leftovers:[{L,W}], cuts:[{L,W}]}]
+  const newSheet = () => ({ leftovers: [{L: PLY_SHEET.L, W: PLY_SHEET.W}], cuts: [] });
 
   pieces.forEach(p=>{
-    let placed=false;
+    let placed = false;
     for (const sh of sheets){
       for (let i=0;i<sh.leftovers.length;i++){
-        const r=sh.leftovers[i];
-        const fit1=(p.L<=r.L && p.W<=r.W), fit2=(p.L<=r.W && p.W<=r.L);
-        if(!fit1 && !fit2) continue;
-        const rectL=fit1? r.L:r.W, rectW=fit1? r.W:r.L;
-        const rem1={L:rectL-p.L, W:p.W}, rem2={L:rectL, W:rectW-p.W};
+        const r = sh.leftovers[i];
+        const fit1 = (p.L<=r.L && p.W<=r.W);
+        const fit2 = (p.L<=r.W && p.W<=r.L);
+        if (!fit1 && !fit2) continue;
+
+        const rectL = fit1 ? r.L : r.W;
+        const rectW = fit1 ? r.W : r.L;
+
+        const rem1 = { L: rectL - p.L, W: p.W };
+        const rem2 = { L: rectL,       W: rectW - p.W };
+
         sh.leftovers.splice(i,1);
-        [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
-        sh.cuts.push({L:p.L, W:p.W}); placed=true; break;
+        [rem1,rem2].forEach(x => { if (x.L>1 && x.W>1) sh.leftovers.push(x); });
+        sh.cuts.push({ L:p.L, W:p.W });
+        placed = true;
+        break;
       }
       if (placed) break;
     }
+
     if (!placed){
-      const sh=newSheet(), r=sh.leftovers[0];
-      const rectL=r.L, rectW=r.W;
-      const rem1={L:rectL-p.L, W:p.W}, rem2={L:rectL, W:rectW-p.W};
-      sh.leftovers=[]; [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
-      sh.cuts.push({L:p.L, W:p.W}); sheets.push(sh);
+      const sh = newSheet();
+      const r = sh.leftovers[0];
+      const rectL = r.L, rectW = r.W;
+
+      const rem1 = { L: rectL - p.L, W: p.W };
+      const rem2 = { L: rectL,       W: rectW - p.W };
+
+      sh.leftovers = [];
+      [rem1,rem2].forEach(x => { if (x.L>1 && x.W>1) sh.leftovers.push(x); });
+      sh.cuts.push({ L:p.L, W:p.W });
+      sheets.push(sh);
     }
   });
 
-  return { sheets, cost: sheets.length * PLY_SHEET.COST };
+  return { sheets, cost: (sheets.length || 0) * PLY_SHEET.COST };
 }
 
 function suggestPlywood(){
   const { sheets, cost } = computePlywoodPlan();
-  const body=document.getElementById('plyBody');
-  const sum=document.getElementById('plySummary');
-  body.innerHTML='';
-  sheets.forEach((sh,i)=>{
-    const cuts  = sh.cuts.map(c=>`${c.L.toFixed(2)}×${c.W.toFixed(2)}`).join(', ');
-    const lefts = sh.leftovers.map(l=>`${l.L.toFixed(2)}×${l.W.toFixed(2)}`).join(', ');
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${i+1}</td><td>${cuts}</td><td>${lefts}</td>`;
-    body.appendChild(tr);
+
+  // render table
+  const plyBody = document.getElementById("plyBody");
+  const plySummary = document.getElementById("plySummary");
+  plyBody.innerHTML = "";
+  sheets.forEach((sh, idx) => {
+    const cutsStr = sh.cuts.map(c => `${c.L.toFixed(2)}×${c.W.toFixed(2)}`).join(", ");
+    const leftStr = sh.leftovers.map(l => `${l.L.toFixed(2)}×${l.W.toFixed(2)}`).join(", ");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${idx+1}</td><td>${cutsStr}</td><td>${leftStr}</td>`;
+    plyBody.appendChild(tr);
   });
+
   currentPlywoodSheets = sheets.length;
-  currentPlywoodCost   = cost;
-  if (sum) sum.textContent = `Sheets used: ${sheets.length} × $${PLY_SHEET.COST} = $${cost.toFixed(2)} (plywood piece size = L–3", W–2")`;
+  currentPlywoodCost = cost;
+  if (plySummary) {
+    plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood piece size = L–3", W–2")`;
+  }
+
+  // refresh totals AFTER state set
   calculate();
 }
 
-/* ===================== OCR (same as before) ===================== */
+/* ===================== OCR (Tesseract.js) ===================== */
 const imageInput = document.getElementById("imageInput");
 const runOcrBtn  = document.getElementById("runOcrBtn");
 const ocrStatus  = document.getElementById("ocrStatus");
 const previewImg = document.getElementById("previewImg");
+
 let uploadedImageURL = null;
 
 if (imageInput) {
@@ -498,63 +604,116 @@ if (imageInput) {
     if (ocrStatus) ocrStatus.textContent = "Image loaded. Click 'Run OCR & Auto-Fill'.";
   });
 }
+
 if (runOcrBtn) {
   runOcrBtn.addEventListener("click", async () => {
-    if (!uploadedImageURL) { if (ocrStatus) ocrStatus.textContent = "Please choose a sketch image first."; return; }
+    if (!uploadedImageURL) {
+      if (ocrStatus) ocrStatus.textContent = "Please choose a sketch image first.";
+      return;
+    }
     if (ocrStatus) ocrStatus.textContent = "Running OCR…";
     try {
-      const { data } = await Tesseract.recognize(uploadedImageURL, 'eng', { tessedit_char_whitelist: '0123456789xX/." \'' });
+      const { data } = await Tesseract.recognize(uploadedImageURL, 'eng', {
+        tessedit_char_whitelist: '0123456789xX/." \'',
+      });
       const text = data.text || "";
       if (ocrStatus) ocrStatus.innerHTML = "OCR complete. <span class='badge'>Parsing…</span>";
       const parts = parseDimensions(text);
-      if (!parts.length) { if (ocrStatus) ocrStatus.textContent = "No dimensions detected."; return; }
+      if (parts.length === 0) {
+        if (ocrStatus) ocrStatus.textContent = "No dimensions detected.";
+        return;
+      }
       autoFillRows(parts);
       if (ocrStatus) ocrStatus.textContent = `Auto-filled ${parts.length} item(s).`;
       calculate();
-    } catch (e) { console.error(e); if (ocrStatus) ocrStatus.textContent = "OCR failed."; }
+    } catch (err) {
+      console.error(err);
+      if (ocrStatus) ocrStatus.textContent = "OCR failed.";
+    }
   });
 }
 
-function parseDimensions(text){
-  const cleaned = text.replace(/\s+/g,' ').replace(/[,;]/g,' ').trim();
-  const out=[]; const rg=/(?:([A-Za-z0-9]+)[:\)\-]?\s*)?(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)\s*(?:in|")?\s*[xX×]\s*(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)/g;
-  let m;
-  while ((m=rg.exec(cleaned))!==null){
-    const label = m[1]?.trim()||'';
-    const a = toInches(m[2]); const b = toInches(m[3]);
-    out.push({ label, length:a, width:b }); // keep order
+/* ===================== Parsing helpers ===================== */
+function parseDimensions(text) {
+  const cleaned = text.replace(/\s+/g, ' ').replace(/[,;]/g, ' ').trim();
+  const results = [];
+  const dimPattern = /(?:([A-Za-z0-9]+)[:\)\-]?\s*)?(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)\s*(?:in|")?\s*[xX×]\s*(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)/g;
+  let match;
+  while ((match = dimPattern.exec(cleaned)) !== null) {
+    const label = match[1] ? String(match[1]).trim() : "";
+    const a = toInches(match[2]);
+    const b = toInches(match[3]);
+    results.push({ label, length: a, width: b }); // keep L×W as written
   }
-  return out;
+  return results;
 }
-function toInches(s){
-  s=String(s).trim();
-  if (s.includes(' ')){ const [w,f]=s.split(' '); return parseFloat(w)+fracToDec(f); }
-  if (s.includes('/')) return fracToDec(s);
+function toInches(s) {
+  s = String(s).trim();
+  if (s.includes(" ")) {
+    const [whole, frac] = s.split(" ");
+    return parseFloat(whole) + fracToDec(frac);
+  }
+  if (s.includes("/")) return fracToDec(s);
   return parseFloat(s);
 }
-function fracToDec(fr){ const [n,d]=fr.split('/').map(Number); return (!d||d===0)?0:(n/d); }
-function autoFillRows(parts){
-  const tbody = document.getElementById('tableBody');
-  const rows  = Array.from(tbody.querySelectorAll('tr'));
-  let i=0;
-  for (let r=0;r<rows.length && i<parts.length;r++){
-    const row=rows[r], L=row.querySelector('.length'), W=row.querySelector('.width'), G=row.querySelector('.group');
-    if (L.value || W.value) continue;
-    L.value = parts[i].length.toFixed(2);
-    W.value = parts[i].width.toFixed(2);
-    if (parts[i].label) G.value = parts[i].label;
-    i++;
+function fracToDec(frac) {
+  const [n, d] = frac.split("/").map(Number);
+  if (!d || d === 0) return 0;
+  return n / d;
+}
+function autoFillRows(parts) {
+  const tbody = document.getElementById("tableBody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  let idx = 0;
+  for (let r = 0; r < rows.length && idx < parts.length; r++) {
+    const row = rows[r];
+    const lenInput = row.querySelector(".length");
+    const widInput = row.querySelector(".width");
+    const groupInput = row.querySelector(".group");
+    if ((lenInput.value || widInput.value)) continue;
+    lenInput.value = parts[idx].length.toFixed(2);
+    widInput.value = parts[idx].width.toFixed(2);
+    if (parts[idx].label) groupInput.value = parts[idx].label;
+    idx++;
   }
-  if (i<parts.length){
-    ensureRows(rows.length + (parts.length-i));
-    const rows2 = Array.from(tbody.querySelectorAll('tr'));
-    for (let r=rows.length; r<rows2.length && i<parts.length; r++){
-      rows2[r].querySelector('.length').value = parts[i].length.toFixed(2);
-      rows2[r].querySelector('.width').value  = parts[i].width.toFixed(2);
-      if (parts[i].label) rows2[r].querySelector('.group').value = parts[i].label;
-      i++;
+  if (idx < parts.length) {
+    const need = parts.length - idx;
+    ensureRows(rows.length + need);
+    const newRows = Array.from(tbody.querySelectorAll("tr"));
+    for (let r = rows.length; r < newRows.length && idx < parts.length; r++) {
+      const row = newRows[r];
+      row.querySelector(".length").value = parts[idx].length.toFixed(2);
+      row.querySelector(".width").value  = parts[idx].width.toFixed(2);
+      if (parts[idx].label) row.querySelector(".group").value = parts[idx].label;
+      idx++;
     }
   }
+}
+
+/* ===================== Plywood button: render using planner ===================== */
+function suggestPlywood() {
+  const { sheets, cost } = computePlywoodPlan();
+
+  // render table
+  const plyBody = document.getElementById("plyBody");
+  const plySummary = document.getElementById("plySummary");
+  plyBody.innerHTML = "";
+  sheets.forEach((sh, idx) => {
+    const cutsStr = sh.cuts.map(c => `${c.L.toFixed(2)}×${c.W.toFixed(2)}`).join(", ");
+    const leftStr = sh.leftovers.map(l => `${l.L.toFixed(2)}×${l.W.toFixed(2)}`).join(", ");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${idx+1}</td><td>${cutsStr}</td><td>${leftStr}</td>`;
+    plyBody.appendChild(tr);
+  });
+
+  currentPlywoodSheets = sheets.length;
+  currentPlywoodCost = cost;
+  if (plySummary) {
+    plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood piece size = L–3", W–2")`;
+  }
+
+  // refresh totals AFTER state set
+  calculate();
 }
 
 /* ===================== Expose to HTML buttons ===================== */
