@@ -263,7 +263,7 @@ function parseDimensions(text) {
   while ((match = dimPattern.exec(cleaned)) !== null) {
     const label = match[1] ? String(match[1]).trim() : "";
     const a = toInches(match[2]); // first number = Length
-    const b = toInches(match[3]); // second number = Width
+       const b = toInches(match[3]); // second number = Width
     const length = a;             // KEEP ORDER (do not rotate)
     const width  = b;
     results.push({ label, length, width });
@@ -329,38 +329,32 @@ function asSL_SW(size) {
   const SL = Math.max(size[0], size[1]), SW = Math.min(size[0], size[1]);
   return [SL, SW];
 }
+
+// === UPDATED: shared pool for Countertop & Island ===
 function poolKeyForPack(mat, typ) {
-  return (typ === "FullBacksplash") ? `${mat}|FullBacksplash` : `${mat}|${typ}`;
+  if (typ === "Countertop" || typ === "Island") return `${mat}|CT_ISL`;
+  if (typ === "FullBacksplash") return `${mat}|FullBacksplash`;
+  return `${mat}|${typ}`;
 }
+
+// === UPDATED: candidates reflect the shared pool rule and FBS sourcing ===
 function getCandidatesFor(material, type) {
   if (type === "FullBacksplash") {
-    // Only from larger stock: CT/Island/Bartop
+    // Can be cut from Countertop, Island, or Bartop
     return []
       .concat(PREFAB[material]?.Countertop || [],
               PREFAB[material]?.Island     || [],
               PREFAB[material]?.Bartop     || []);
   }
+  if (type === "Countertop" || type === "Island") {
+    // Shared pool of Countertop + Island
+    return []
+      .concat(PREFAB[material]?.Countertop || [],
+              PREFAB[material]?.Island     || []);
+  }
   return (PREFAB[material] && PREFAB[material][type])
     ? PREFAB[material][type].slice()
     : [];
-}
-
-// (kept for potential use elsewhere; not required by the new strategy)
-function placeIntoOpenBins(openBins, part, width) {
-  let bestIdx = -1, bestAfter = Infinity;
-  for (let i = 0; i < openBins.length; i++) {
-    const b = openBins[i];
-    if (b.SW + 1e-6 >= width && b.remaining + 1e-6 >= part.L) {
-      const after = b.remaining - part.L;
-      if (after < bestAfter) { bestAfter = after; bestIdx = i; }
-    }
-  }
-  if (bestIdx >= 0) {
-    openBins[bestIdx].cuts.push({ part, cutL: part.L, cutW: width });
-    openBins[bestIdx].remaining -= part.L;
-    return true;
-  }
-  return false;
 }
 
 // Shrink each bin to the SMALLEST catalog length that still holds its cuts
@@ -379,14 +373,13 @@ function shrinkBins(bins, candidates, width) {
       b.SW = best[1];
       b.remaining = b.SL - used;
     } else {
-      // If no smaller fits, sync remaining to current SL
       b.remaining = b.SL - used;
     }
   });
   return bins;
 }
 
-/* ========= NEW CORE: Fewest slabs first → then shrink to smallest prefab ========= */
+/* ========= CORE: Fewest slabs first → then shrink to smallest prefab ========= */
 function packFewestSlabsFirstFFD(partsW, candidates, width) {
   const EPS = 1e-6;
 
@@ -403,8 +396,7 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
     }));
   }
 
-  // Strategy: minimize slab count → pack into bins with capacity = largest SL,
-  // then shrink each bin to the smallest prefab length that still holds its cuts.
+  // Minimize slab count first (pack into largest length), then shrink.
   const maxSL = Math.max(...sizes.map(([SL]) => SL));
   const minSW = Math.min(...sizes.map(([SL, SW]) => SW)); // placeholder; real SW set by shrink
 
@@ -413,7 +405,6 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
   const bins = []; // { SL, SW, remaining, cuts[], nofit? }
 
   for (const p of parts) {
-    // If a single piece is longer than any slab, it's a no-fit
     if (p.L - EPS > maxSL) {
       bins.push({
         SL: p.L, SW: width, remaining: 0, nofit: true,
@@ -422,7 +413,7 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
       continue;
     }
 
-    // Try to reuse leftovers first: best-fit (smallest remaining that still fits)
+    // Try to reuse leftovers first: best-fit (smallest remaining that fits)
     let bestIdx = -1, bestAfter = Infinity;
     for (let i = 0; i < bins.length; i++) {
       const b = bins[i];
@@ -437,8 +428,6 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
       bins[bestIdx].cuts.push({ part: p, cutL: p.L, cutW: width });
       bins[bestIdx].remaining -= p.L;
     } else {
-      // Open a new slab using the *largest* allowed length to minimize bin count,
-      // and we'll shrink it later to the smallest prefab that works.
       bins.push({
         SL: maxSL,
         SW: minSW,               // placeholder; corrected in shrink step
@@ -448,7 +437,6 @@ function packFewestSlabsFirstFFD(partsW, candidates, width) {
     }
   }
 
-  // Now shrink each opened bin to the smallest catalog length that holds its cuts.
   return shrinkBins(bins, candidates, width);
 }
 
@@ -521,15 +509,21 @@ function suggestPieces() {
       bins.forEach((b, bi) => {
         if (!b.nofit && b.SL && b.SW) addCount(mat, b.SL, b.SW);
 
+        // === LABELED final leftover per slab for roll-up ===
         const rem = Math.max(0, b.remaining || 0);
-        if (rem > 1) leftoverPieces.push(`${rem.toFixed(0)} × ${width.toFixed(0)}`);
+        if (rem > 1) {
+          leftoverPieces.push(`${rem.toFixed(0)} × ${width.toFixed(0)} (Piece #${bi+1})`);
+        }
 
         let running = b.SL ?? 0;
         (b.cuts || []).forEach(c => {
           running -= c.cutL;
           const cutStr = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
           const prefabStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})` : "-";
-          const leftStr = b.SL ? `${Math.max(0, running).toFixed(2)}×${width.toFixed(2)}` : "-";
+          // === LABELED leftover after this cut ===
+          const leftStr = b.SL
+            ? `${Math.max(0, running).toFixed(2)}×${width.toFixed(2)} (Piece #${bi+1})`
+            : "-";
           const arr = placements.get(c.part.idx) || [];
           arr.push({ group: c.part.group, typ: c.part.typ, cutStr, prefabStr, leftStr, nofit: c.nofit });
           placements.set(c.part.idx, arr);
