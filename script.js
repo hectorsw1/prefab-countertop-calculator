@@ -344,6 +344,7 @@ function getCandidatesFor(material, type) {
     : [];
 }
 
+// Best-fit placement into existing open bins
 function placeIntoOpenBins(openBins, part, width) {
   let bestIdx = -1, bestAfter = Infinity;
   for (let i = 0; i < openBins.length; i++) {
@@ -384,19 +385,21 @@ function packSingleSlabIfPossible(partsW, candidates, width) {
   return [{ SL, SW, remaining, cuts }];
 }
 
-// Multi-size plan: use larger slabs first (reduces slab count), reuse open bins, best-fit placement.
+// Multi-size plan: SMALLest slab that fits when opening; reuse open bins first.
 function packMultiSizeFFD(partsW, candidates, width) {
-  const parts = partsW.slice().sort((a,b)=>b.L - a.L);
-  const cands = candidates
+  const parts = partsW.slice().sort((a,b)=> b.L - a.L); // longest first
+  const candsAsc = candidates
     .map(asSL_SW)
     .filter(([SL,SW]) => SW + 1e-6 >= width)
-    .sort((a,b)=> b[0] - a[0]); // larger SL first
+    .sort((a,b) => a[0] - b[0]); // smallest SL first
 
   const bins = [];
   parts.forEach(p => {
+    // 1) Try existing open bins (best-fit by remaining)
     if (placeIntoOpenBins(bins, p, width)) return;
 
-    const chosen = cands.find(([SL]) => SL + 1e-6 >= p.L);
+    // 2) Open a new bin with the SMALLEST SL that fits this cut
+    const chosen = candsAsc.find(([SL]) => SL + 1e-6 >= p.L);
     if (!chosen) {
       bins.push({ SL: p.L, SW: width, remaining: 0, cuts: [{ part: p, cutL: p.L, cutW: width, nofit: true }] });
       return;
@@ -408,8 +411,34 @@ function packMultiSizeFFD(partsW, candidates, width) {
   return bins;
 }
 
+// Shrink each bin to the SMALLEST catalog length that still holds its cuts
+function shrinkBins(bins, candidates, width) {
+  const candsAsc = candidates
+    .map(asSL_SW)
+    .filter(([SL,SW]) => SW + 1e-6 >= width)
+    .sort((a,b) => a[0] - b[0]); // smallest first
+
+  bins.forEach(b => {
+    if (!b.SL || !b.cuts) return;
+    const used = b.cuts.reduce((acc, c) => acc + c.cutL, 0);
+    const best = candsAsc.find(([SL]) => SL + 1e-6 >= used);
+    if (best && best[0] < b.SL) {
+      b.SL = best[0];
+      b.SW = best[1];
+      b.remaining = b.SL - used;
+    }
+  });
+  return bins;
+}
+
 function planForBucket(partsW, candidates, width) {
-  return packSingleSlabIfPossible(partsW, candidates, width) || packMultiSizeFFD(partsW, candidates, width);
+  // 1) One-slab if total length fits (min material and waste)
+  const single = packSingleSlabIfPossible(partsW, candidates, width);
+  if (single) return single;
+
+  // 2) Multi-size pack with smallest-slab opening, then shrink to minimal lengths
+  const multi = packMultiSizeFFD(partsW, candidates, width);
+  return shrinkBins(multi, candidates, width);
 }
 
 /* ===================== Suggest Prefab Pieces (unified rules) ===================== */
