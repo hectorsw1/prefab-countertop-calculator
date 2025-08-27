@@ -33,9 +33,9 @@ const PREFAB = {
 // --- CONSTANTS ---
 const LABOR_RATE = 14;             // $/sqft
 const REFAB_RATE = 30;             // $/lf
-const ISLAND_SURCHARGE_COST = 150;
+const ISLAND_SURCHARGE_L = 120;    // inches
 const ISLAND_SURCHARGE_W = 43;     // inches
-const ISLAND_SURCHARGE_COST = 150;
+const ISLAND_SURCHARGE_COST = 150; // <-- fixed (removed stray "the")
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };  // plywood sheet
 const PLY_OFFSET_LENGTH = 3; // plywood rule: L-3"
 const PLY_OFFSET_WIDTH  = 2; // plywood rule: W-2"
@@ -395,14 +395,13 @@ function trySingleSlab(partsW, candidates, width) {
   const chosen = cands.find(([SL]) => SL + 1e-6 >= sumL);
   if (!chosen) return null;
 
-  // Put them in descending length order onto a single bin
   const parts = partsW.slice().sort((a,b)=>b.L - a.L);
   const [SL, SW] = chosen;
   let remaining = SL;
   const cuts = [];
   for (const p of parts) {
     remaining -= p.L;
-    if (remaining < -1e-6) return null; // shouldn't happen due to check, safety
+    if (remaining < -1e-6) return null; // safety
     cuts.push({ part: p, cutL: p.L, cutW: width });
   }
   return [{ SL, SW, remaining, cuts }];
@@ -426,11 +425,8 @@ function packMultiSizeFFD(partsW, candidates, width) {
       }
     }
     if (bestIdx === -1) {
-      // Open a new bin: choose the smallest *available* SL that still keeps count low.
-      // Since cands are desc, first that fits p.L will be large; that’s OK (min piece count).
       const chosen = cands.find(([SL]) => SL + 1e-6 >= p.L);
       if (!chosen) {
-        // no fit at all (part longer than any prefab)
         const stub = { SL: p.L, SW: width, remaining: 0, cuts: [{ part: p, cutL: p.L, cutW: width, nofit: true }] };
         bins.push(stub);
         return;
@@ -490,8 +486,8 @@ function suggestPieces() {
     suggestBody.appendChild(tr);
   };
 
-  pools.forEach((byWidth, poolKey) => {
-    byWidth.forEach((partsW, widthKey) => {
+  pools.forEach((byWidth) => {
+    byWidth.forEach((partsW) => {
       const width = partsW[0].W;
       const { mat, typ } = partsW[0];
       const candidates = getCandidatesFor(mat, typ);
@@ -503,25 +499,21 @@ function suggestPieces() {
       let bins = null;
 
       if (mat === "Quartz") {
-        // 1) Try single-slab solution first (e.g., 26×114 or 26×120)
+        // (1) Try single slab first (e.g., 26×114 / 26×120)
         bins = trySingleSlab(partsW, candidates, width);
-        // 2) Else multi-size pack (prefers larger slabs -> fewer pieces)
+        // (2) Else pack with multi-size preferring larger slabs (min piece count)
         if (!bins) bins = packMultiSizeFFD(partsW, candidates, width);
       } else {
         // Non-Quartz: enforce uniform size per pool (no mixing)
-        if (ENFORCE_UNIFORM_PREFAB_NON_QUARTZ) {
-          const chosen = chooseUniformSize(candidates, partsW, width);
-          if (!chosen) {
-            partsW.forEach(p => addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "-"));
-            return;
-          }
-          bins = packUniformSize(partsW, chosen, width);
-        } else {
-          bins = packMultiSizeFFD(partsW, candidates, width);
+        const chosen = chooseUniformSize(candidates, partsW, width);
+        if (!chosen) {
+          partsW.forEach(p => addSuggestRow(p.idx, p.group, p.typ, `${p.L.toFixed(2)}×${p.W.toFixed(2)}`, "No fit", "-", "-"));
+          return;
         }
+        bins = packUniformSize(partsW, chosen, width);
       }
 
-      // Build placement lookup
+      // Placement lookup
       const placements = new Map(); // part.idx -> [{...}]
       bins.forEach((b, bi) => {
         addCount(mat, b.SL, b.SW);
@@ -540,7 +532,7 @@ function suggestPieces() {
         });
       });
 
-      // Render rows in original order
+      // Render in original order
       partsW.slice().sort((a,b)=>a.idx-b.idx).forEach(p => {
         const arr = placements.get(p.idx);
         if (!arr || !arr.length) {
