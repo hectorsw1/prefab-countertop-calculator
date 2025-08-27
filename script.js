@@ -344,6 +344,34 @@ function getCandidatesFor(material, type) {
   }
   return PREFAB[material] && PREFAB[material][type] ? PREFAB[material][type].slice() : [];
 }
+// Put ALL cuts for a width bucket on the SMALLEST single slab that fits.
+// Returns [ { SL, SW, remaining, cuts:[{part,cutL,cutW}] } ] or null.
+function packSingleSlabIfPossible(partsW, candidates, width) {
+  const sumL = partsW.reduce((acc, p) => acc + p.L, 0);
+
+  // Normalize and filter candidates that are wide enough for this bucket
+  const cands = candidates
+    .map(([a,b]) => [Math.max(a,b), Math.min(a,b)])    // [SL, SW]
+    .filter(([SL, SW]) => SW + 1e-6 >= width)          // wide enough
+    .sort((a,b) => a[0] - b[0]);                       // by SL asc
+
+  // Choose the SMALLEST SL that can hold the total length
+  const chosen = cands.find(([SL]) => SL + 1e-6 >= sumL);
+  if (!chosen) return null;
+
+  const [SL, SW] = chosen;
+  // Place in descending cut length order so the row output looks sensible
+  const parts = partsW.slice().sort((a, b) => b.L - a.L);
+
+  let remaining = SL;
+  const cuts = [];
+  for (const p of parts) {
+    if (remaining + 1e-6 < p.L) return null; // safety (shouldn't happen)
+    cuts.push({ part: p, cutL: p.L, cutW: width });
+    remaining -= p.L;
+  }
+  return [{ SL, SW, remaining, cuts }];
+}
 
 // Non-Quartz: choose single uniform size that minimizes piece count, then waste
 function chooseUniformSize(candidates, partsW, width) {
