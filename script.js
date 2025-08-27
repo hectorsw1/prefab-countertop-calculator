@@ -33,7 +33,7 @@ const PREFAB = {
 // --- CONSTANTS ---
 const LABOR_RATE = 14;             // $/sqft
 const REFAB_RATE = 30;             // $/lf
-const ISLAND_SURCHARGE_L = 120;    // inches
+const ISLAND_SURCHARGE_COST = 150;
 const ISLAND_SURCHARGE_W = 43;     // inches
 the ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 };  // plywood sheet
