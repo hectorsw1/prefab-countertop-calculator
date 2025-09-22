@@ -9,8 +9,9 @@ const CSV_FILES = {
   Quartzite:"Quartzite_tidy.csv",
   Marble:   "Marble_tidy.csv",
 };
+const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
 
-/* ========= CSV FETCH HELPERS ========= */
+/* ========= FLEXIBLE LOADER WITH TIMEOUT ========= */
 function fetchWithTimeout(url, ms = 7000) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
