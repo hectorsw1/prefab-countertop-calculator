@@ -92,8 +92,21 @@ function parseCSV(text){
   const headers = splitCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
   const stoneAliases = ["stone","name","color","color name","stone name"];
   const sizeAliases  = ["size","sizes","dimension","dimensions","stock","available sizes","available size"];
+// Add this above where you call findIndex
+const stoneAliases = [
+  "stone",
+  "name",
+  "color",
+  "stone name",
+  "color name",
+  "material name",
+  "slab",
+  "slab name"
+];
 
-  const iStone = headers.findIndex(h => stoneAliases.includes(h));
+const iStone = headers.findIndex(h =>
+  /stone|color|name/.test(h)
+);
   const iSize  = headers.findIndex(h => sizeAliases.includes(h));
   const iLen   = headers.findIndex(h => ["length","len","l"].includes(h));
   const iWidth = headers.findIndex(h => ["width","wid","w"].includes(h));
@@ -110,15 +123,22 @@ function parseCSV(text){
       // allow "108x26" or "108 × 26" or "26x108"
       size = String(cols[iSize]).toLowerCase().replace(/×/g,"x").replace(/\s*x\s*/g,"x").trim();
       // If cell contains multiple sizes separated by ; or , — keep the first one (or you can expand)
-      size = size.split(/[;,]/)[0].trim();
-      const parts = size.split("x").map(Number);
-      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
-        const L = Math.max(parts[0], parts[1]);
-        const W = Math.min(parts[0], parts[1]);
-        size = `${L}x${W}`;
-      } else {
-        size = null;
-      }
+  size = size
+  .toLowerCase()
+  .replace(/×/g, "x")       // normalize multiplication sign
+  .replace(/\s*x\s*/g, "x") // strip spaces around x
+  .split(/[;,]/)[0]         // if multiple sizes, take the first
+  .trim();
+
+const parts = size.split("x").map(Number);
+
+if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+  const L = Math.max(parts[0], parts[1]);
+  const W = Math.min(parts[0], parts[1]);
+  size = `${L}x${W}`;
+} else {
+  size = null;
+}
     } else if (iLen >= 0 && iWidth >= 0) {
       const a = Number(cols[iLen]), b = Number(cols[iWidth]);
       if (isFinite(a) && isFinite(b)) {
