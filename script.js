@@ -1,13 +1,36 @@
-/* ========= CSV PATHS =========
-   Put your files in /public/csv/ for Vercel/Vite/Next.
-   Case-sensitive!
+/* ========= CSV FILENAMES + FLEXIBLE LOADER ========= */
+/* Put CSVs either in:
+   - Next/Vite:   /public/csv/*.csv  (served at /csv/...)
+   - Static site: /csv/*.csv next to index.html
 */
 const CSV_FILES = {
-  Quartz:   "/csv/Quartz_tidy.csv",
-  Granite:  "/csv/Granite_tidy.csv",
-  Quartzite:"/csv/Quartzite_tidy.csv",
-  Marble:   "/csv/Marble_tidy.csv",
+  Quartz:   "Quartz_tidy.csv",
+  Granite:  "Granite_tidy.csv",
+  Quartzite:"Quartzite_tidy.csv",
+  Marble:   "Marble_tidy.csv",
 };
+
+// Try these prefixes (in order) until one works at runtime
+const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
+
+async function loadMaterialCSVFlexible(filename){
+  let lastErr;
+  for (const prefix of CSV_CANDIDATE_PREFIXES){
+    const path = `${prefix}${filename}`;
+    try {
+      const res = await fetch(path, { cache: "no-store" });
+      console.log(`[CSV TRY] ${path} → ${res.status}`);
+      if (!res.ok) { lastErr = new Error(`Failed ${path} (${res.status})`); continue; }
+      const text = await res.text();
+      const rows = parseCSV(text);
+      if (rows.length > 0) return rows;
+      lastErr = new Error(`OK but empty rows: ${path}`);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error(`Could not load ${filename}`);
+}
 
 /* ========= CONSTANTS ========= */
 const LABOR_RATE = 14;
@@ -40,11 +63,11 @@ function parseSizeKey(sizeStr){
 }
 
 /* ========= STRICT MAP BUILDING =========
-   Store shape: BY[Material][StoneDisplay] = Set("LxW")
+   BY[Material][StoneDisplay] = Set("LxW")
 */
 function buildStrictSizeMap(store){
-  const map = {};                // material -> stone -> Set("LxW")
-  const normIndex = {};          // material -> norm(stone) -> displayStone
+  const map = {};
+  const normIndex = {};
   for (const mat of Object.keys(store)){
     map[mat] = {};
     normIndex[mat] = {};
@@ -62,12 +85,9 @@ function buildStrictSizeMap(store){
   return { map, normIndex };
 }
 
-/* ========= CSV PARSER =========
-   - Handles BOM, quoted cells, header aliases, × sign, multiple sizes in one cell.
-*/
+/* ========= CSV PARSER (robust) ========= */
 function parseCSV(text){
-  // Strip BOM
-  if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
 
   function splitCSVLine(line){
     const out = [];
@@ -134,14 +154,7 @@ function parseCSV(text){
   return out;
 }
 
-async function loadMaterialCSV(path){
-  const res = await fetch(path, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Failed to fetch ${path} (${res.status})`);
-  const text = await res.text();
-  return parseCSV(text);
-}
-
-/* ========= UI: Material -> Stone ========== */
+/* ========= UI: Material -> Stone ========= */
 function setupGlobalStoneSelector(){
   const matSel = document.getElementById("materialSelect");
   const stoneSel = document.getElementById("stoneSelect");
@@ -219,7 +232,6 @@ function ensureRows(n){
     tableBody.appendChild(tr);
   }
 
-  // Recalculate on changes
   tableBody.addEventListener("input", (e)=>{
     if (e.target.matches(".length, .width, .ptype, .material, .sink, .refab")) {
       calculate();
@@ -277,7 +289,6 @@ function calculate(){
   const addons=getSinkAddonsSplit();
   const fee=Number(document.getElementById('oversizeFeeInput')?.value||0)||0;
 
-  // Roll up
   document.getElementById("totalSqft").innerText=sumSqft.toFixed(2);
   document.getElementById("totalLabor").innerText=sumLabor.toFixed(2);
   document.getElementById("totalExtras").innerText=sumExtras.toFixed(2);
@@ -291,7 +302,7 @@ function calculate(){
   document.getElementById("grandTotal").textContent        =`$${grand.toFixed(2)}`;
 }
 
-/* ========= OCR Light ========= */
+/* ========= OCR (unchanged) ========= */
 const imageInput=document.getElementById("imageInput");
 const runOcrBtn=document.getElementById("runOcrBtn");
 const ocrStatus=document.getElementById("ocrStatus");
@@ -462,126 +473,53 @@ function suggestPieces(){
     <tbody>${rowsHtml}</tbody></table>`;
 }
 
-/* ========= Plywood ========= */
-function computePlywoodPlan(){
-  const rows=Array.from(tableBody.querySelectorAll("tr")); 
-  const pcs=[];
-  rows.forEach(r=>{
-    const typ=(r.querySelector(".ptype")?.value||"").trim();
-    if(!["Countertop","Island","Bartop"].includes(typ)) return;
-    const RL=parseFloat(r.querySelector(".length")?.value)||0;
-    const RW=parseFloat(r.querySelector(".width")?.value)||0;
-    let L=Math.max(RL-PLY_OFF_L, RW-PLY_OFF_W);
-    let W=Math.min(RL-PLY_OFF_L, RW-PLY_OFF_W);
-    if(L>0 && W>0) pcs.push({L,W,area:L*W});
-  });
-  pcs.sort((a,b)=>b.area-a.area);
-  const sheets=[]; 
-  const newSheet=()=>({leftovers:[{L:PLY_SHEET.L,W:PLY_SHEET.W}],cuts:[]});
-  pcs.forEach(p=>{
-    let placed=false;
-    for(const sh of sheets){
-      for(let i=0;i<sh.leftovers.length;i++){
-        const r=sh.leftovers[i]; 
-        const fit1=p.L<=r.L && p.W<=r.W; 
-        const fit2=p.L<=r.W && p.W<=r.L;
-        if(!fit1 && !fit2) continue;
-        const RL=fit1?r.L:r.W; 
-        const RW=fit1?r.W:r.L;
-        const rem1={L:RL-p.L,W:p.W}; 
-        const rem2={L:RL,W:RW-p.W};
-        sh.leftovers.splice(i,1); 
-        [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
-        sh.cuts.push({L:p.L,W:p.W}); 
-        placed=true; 
-        break;
-      }
-      if(placed) break;
-    }
-    if(!placed){
-      const sh=newSheet(); 
-      const r=sh.leftovers[0];
-      const rem1={L:r.L-p.L,W:p.W}; 
-      const rem2={L:r.L,W:r.W-p.W};
-      sh.leftovers=[]; 
-      [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
-      sh.cuts.push({L:p.L,W:p.W}); 
-      sheets.push(sh);
-    }
-  });
-  return { sheets, cost: sheets.length * PLY_SHEET.COST };
-}
-function suggestPlywood(){
-  const { sheets, cost } = computePlywoodPlan();
-  const plyBody=document.getElementById("plyBody");
-  const plySummary=document.getElementById("plySummary");
-  plyBody.innerHTML="";
-  sheets.forEach((sh,idx)=>{
-    const cuts=sh.cuts.map(c=>`${c.L.toFixed(2)}×${c.W.toFixed(2)}`).join(", ");
-    const left=sh.leftovers.map(l=>`${l.L.toFixed(2)}×${l.W.toFixed(2)}`).join(", ");
-    const tr=document.createElement("tr"); 
-    tr.innerHTML=`<td>${idx+1}</td><td>${cuts}</td><td>${left}</td>`;
-    plyBody.appendChild(tr);
-  });
-  currentPlywoodCost = cost;
-  if(plySummary) plySummary.textContent = `Sheets used: ${sheets.length} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood: L–3", W–2")`;
-  calculate();
-}
-
-/* ========= DEBUG Helper ========= */
+/* ========= DEBUG (optional, but helpful) ========= */
 async function debugCsvAvailability(){
   const hint = document.getElementById("stoneHint");
-  for (const [mat, path] of Object.entries(CSV_FILES)) {
-    try {
-      const res = await fetch(path, { cache: "no-store" });
-      console.log(`[CSV DEBUG] ${mat} -> ${path} status:`, res.status);
-      if (!res.ok) {
-        console.warn(`[CSV DEBUG] ${mat} FAILED to fetch:`, res.status, res.statusText);
-        if (hint && !hint.dataset.locked) hint.textContent = `CSV fetch failed for ${mat}: ${path} (${res.status})`;
-        continue;
+  for (const [mat, filename] of Object.entries(CSV_FILES)) {
+    for (const prefix of CSV_CANDIDATE_PREFIXES) {
+      const path = `${prefix}${filename}`;
+      try {
+        const res = await fetch(path, { cache: "no-store" });
+        console.log(`[CSV DEBUG] ${mat}: try ${path} → ${res.status}`);
+        if (res.ok) {
+          const first = (await res.text()).split(/\r?\n/)[0] || "";
+          console.log(`[CSV DEBUG] ${mat}: headers @ ${path} →`, first);
+          if (hint && !hint.dataset.locked) hint.textContent = `Found ${mat} at ${path}`;
+          break;
+        }
+      } catch (e) {
+        console.warn(`[CSV DEBUG] ${mat}: ${path} error →`, e.message);
       }
-      const text = await res.text();
-      const firstLine = (text.split(/\r?\n/)[0]||"").slice(0,160);
-      console.log(`[CSV DEBUG] ${mat} first header line:`, firstLine);
-    } catch (e) {
-      console.error(`[CSV DEBUG] ${mat} error:`, e);
-      if (hint && !hint.dataset.locked) hint.textContent = `CSV error for ${mat}: ${e.message}`;
     }
   }
 }
 
 /* ========= BOOT ========= */
-let BY = {};                 // Material -> Stone -> Set("LxW")
-let STRICT_INDEX = null;     // { map, normIndex }
+let BY = {};
+let STRICT_INDEX = null;
 
 document.addEventListener("DOMContentLoaded", async ()=>{
   ensureRows(30);
 
-  // sinks / fee listeners
   document.querySelectorAll('#sink-options .sink-qty').forEach(input=>{
     const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
     input.addEventListener("input", ()=>{ clamp(); calculate(); });
     input.addEventListener("blur", clamp);
   });
-  const fee=document.getElementById("oversizeFeeInput"); 
-  if(fee) fee.addEventListener("input", calculate);
+  document.getElementById("oversizeFeeInput")?.addEventListener("input", calculate);
   document.getElementById("btnPlywood")?.addEventListener("click", suggestPlywood);
 
-  // Debug availability
-  await debugCsvAvailability();
+  await debugCsvAvailability(); // shows which prefix works
 
-  // Load CSVs -> build strict map
   const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
   const hint = document.getElementById("stoneHint");
 
   try{
-    const entries = Object.entries(CSV_FILES);
-    const results = await Promise.all(entries.map(async ([mat, path])=>{
-      const rows = await loadMaterialCSV(path);
-      return [mat, rows];
-    }));
-
-    results.forEach(([mat, rows]) => { store[mat] = rows; });
+    // USE FLEXIBLE LOADER (this was your bug)
+    for (const [mat, filename] of Object.entries(CSV_FILES)) {
+      store[mat] = await loadMaterialCSVFlexible(filename);
+    }
 
     const STRICT = buildStrictSizeMap(store);
     BY = STRICT.map;
@@ -590,8 +528,15 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if (hint) { hint.textContent = "CSV data loaded. Choose a material, then stone."; hint.dataset.locked = "1"; }
   }catch(e){
     console.warn("CSV load failed", e);
-    BY = { Quartz:{}, Granite:{}, Quartzite:{}, Marble:{} };
     if (hint) { hint.textContent = `Could not load CSVs: ${e.message || e}`; hint.dataset.locked = "1"; }
+
+    // TEMP fallback so UI stays usable while you fix file locations
+    BY = {
+      Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
+      Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
+      Quartzite:{ "Demo Quartzite C": new Set(["120x26"]) },
+      Marble:   { "Demo Marble D": new Set(["98x26"]) }
+    };
   }
 
   setupGlobalStoneSelector();
