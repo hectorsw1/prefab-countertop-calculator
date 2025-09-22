@@ -41,23 +41,23 @@
   </div>
 
   <!-- Material & Stone selectors -->
-  <div id="stone-selectors" class="selectors">
-    <div class="section-title">Material & Stone</div>
+  <!-- === Material + Stone selection === -->
+  <section id="stone-selectors">
     <label for="materialSelect">Material</label>
     <select id="materialSelect">
-      <option value="" selected disabled>Select material…</option>
       <option value="Quartz">Quartz</option>
       <option value="Granite">Granite</option>
       <option value="Quartzite">Quartzite</option>
       <option value="Marble">Marble</option>
     </select>
 
-    <label for="stoneSelect">Stone</label>
+    <label for="stoneSelect">Stone (color)</label>
     <select id="stoneSelect" disabled>
-      <option value="" selected disabled>Select stone…</option>
+      <option value="" selected>Select stone…</option>
     </select>
-    <div id="stoneHint" class="muted" style="margin-top:6px;"></div>
-  </div>
+
+    <small id="stoneHint" class="muted"></small>
+  </section>
 
   <!-- Input Table -->
   <table id="inputTable">
