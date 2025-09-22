@@ -31,7 +31,7 @@ function parseSizeKey(sizeStr){
 }
 
 /** Build strict map: material -> stone -> Set("LxW") */
-function buildStrictSizeMap(store){
+function buildSizeMap(store){
   const out = {};
   for (const mat of Object.keys(store)){
     const mKey = norm(mat);
@@ -95,14 +95,6 @@ async function loadMaterialCSV(path){
   const res = await fetch(path,{cache:"no-store"}); if(!res.ok) throw new Error("fetch "+path); return parseCSV(await res.text());
 }
 // new strict build:
-const STRICT = buildStrictSizeMap(store);
-BY = STRICT.map;               // keep BY for compatibility if you want
-window.STRICT_INDEX = STRICT;  // save for lookups
-document.getElementById("stoneHint").textContent = "CSV data loaded. Choose a material, then stone.";
-
-    const s=(r.stone||"").trim(), z=(r.size||"").trim(); if(!s||!z) continue; (out[mat][s] ||= new Set()).add(z);
-  }} return out;
-}
 let BY = {};
 
 function setupGlobalStoneSelector(){
@@ -244,46 +236,29 @@ function autoFillRows(parts){
 
 // === REPLACE your entire getCandidates(...) with this strict version ===
 function getCandidates(material, type, stone) {
-  // Defensive guards so we never throw on undefined
+  // Guard
   const by = (BY && BY[material]) ? BY[material] : null;
   if (!by) return [];
 
-  // Strict: only use sizes listed in CSV for this specific stone
+  // Only sizes for the selected stone (from CSV)
   const stoneSet = (stone && by[stone]) ? by[stone] : null;
-  if (!stoneSet || stoneSet.size === 0) {
-    // No sizes for this stone -> return empty
-    // (This is intentional to surface CSV/name mismatches)
-    return [];
-  }
+  if (!stoneSet || stoneSet.size === 0) return [];
 
-  // Convert "LxW" strings into [L, W] arrays with L>=W
-  const list = Array.from(stoneSet)
-    .map(parseSizeTuple)
-    .filter(Boolean);
+  // Convert "LxW" -> [L, W] with L >= W
+  const list = Array.from(stoneSet).map(parseSizeTuple).filter(Boolean);
 
-  // Type-specific filters (only trim from the CSV pool; never add new sizes)
+  // Type-specific filters (trim from CSV pool; never add new sizes)
   if (type === "Backsplash" || type === "FullBacksplash") {
-    return list.filter(function (pair) { return pair[1] <= 7; });
+    return list.filter(pair => pair[1] <= 7);
   }
   if (type === "Bartop") {
-    return list.filter(function (pair) { return pair[1] <= 16; });
+    return list.filter(pair => pair[1] <= 16);
   }
   if (type === "Island") {
-    return list.filter(function (pair) { return pair[1] >= 28; });
+    return list.filter(pair => pair[1] >= 28);
   }
-
-  // Countertop: keep CSV-only (optionally constrain to 24–26 if you want)
-  // return list.filter(function (pair) { return pair[1] >= 24 && pair[1] <= 26; });
-  return list;
-}
-
-  const list = [...by[stone]].map(parseSizeTuple).filter(Boolean);
-
-  if (type === "FullBacksplash") {
-    // Use only this stone's sizes (strict)
-    return list;
-  }
-
+  // Countertop: CSV-only (optionally clamp to 24–26")
+  // return list.filter(pair => pair[1] >= 24 && pair[1] <= 26);
   return list;
 }
 
