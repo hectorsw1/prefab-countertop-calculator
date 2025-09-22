@@ -1,9 +1,10 @@
 /* ========= CSV + DROPDOWNS + CALCULATOR ========= */
+// Put files in /public/csv/ in your project
 const CSV_FILES = {
-  Quartz: "Quartz_tidy.csv",
-  Granite: "Granite_tidy.csv",
-  Quartzite: "Quartzite_tidy.csv",
-  Marble: "Marble_tidy.csv",
+  Quartz: "/csv/Quartz_tidy.csv",
+  Granite: "/csv/Granite_tidy.csv",
+  Quartzite: "/csv/Quartzite_tidy.csv",
+  Marble: "/csv/Marble_tidy.csv",
 };
 
 /* ===================== STRICT SIZE HELPERS ===================== */
@@ -71,34 +72,52 @@ const prefabSummary = document.getElementById("prefabSummary");
 /* ===================== CSV PARSER ===================== */
 // Accepts: "size"/"dimension(s)" OR separate "length"/"width"
 function parseCSV(text){
+  // Basic CSV safe-ish split (handles quoted commas)
+  function splitCSVLine(line){
+    const out = [];
+    let cur = "", inQ = false;
+    for (let i=0;i<line.length;i++){
+      const ch=line[i];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { out.push(cur.trim()); cur=""; continue; }
+      cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
   const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim().length);
   if (!lines.length) return [];
 
-  const headers = lines[0].split(",").map(h=>h.trim().toLowerCase());
-  const iStone  = headers.findIndex(h => ["stone","name","color"].includes(h));
-  const iSize   = headers.findIndex(h => ["size","dimension","dimensions","stock"].includes(h));
-  const iLen    = headers.findIndex(h => ["length","len","l"].includes(h));
-  const iWidth  = headers.findIndex(h => ["width","wid","w"].includes(h));
+  const headers = splitCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
+  const stoneAliases = ["stone","name","color","color name","stone name"];
+  const sizeAliases  = ["size","sizes","dimension","dimensions","stock","available sizes","available size"];
+
+  const iStone = headers.findIndex(h => stoneAliases.includes(h));
+  const iSize  = headers.findIndex(h => sizeAliases.includes(h));
+  const iLen   = headers.findIndex(h => ["length","len","l"].includes(h));
+  const iWidth = headers.findIndex(h => ["width","wid","w"].includes(h));
 
   const out = [];
   for (let i=1;i<lines.length;i++){
-    const cols = lines[i].split(",").map(c=>c.trim());
+    const cols = splitCSVLine(lines[i]);
     const stone = iStone>=0 ? cols[iStone] : cols[0];
     if (!stone) continue;
 
     let size = null;
 
     if (iSize >= 0 && cols[iSize]) {
-      size = String(cols[iSize]).toLowerCase()
-        .replace(/×/g,"x")
-        .replace(/\s*x\s*/g,"x")
-        .trim();
+      // allow "108x26" or "108 × 26" or "26x108"
+      size = String(cols[iSize]).toLowerCase().replace(/×/g,"x").replace(/\s*x\s*/g,"x").trim();
+      // If cell contains multiple sizes separated by ; or , — keep the first one (or you can expand)
+      size = size.split(/[;,]/)[0].trim();
       const parts = size.split("x").map(Number);
-      if (!(parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1]))) size = null;
-      else {
+      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
         const L = Math.max(parts[0], parts[1]);
         const W = Math.min(parts[0], parts[1]);
         size = `${L}x${W}`;
+      } else {
+        size = null;
       }
     } else if (iLen >= 0 && iWidth >= 0) {
       const a = Number(cols[iLen]), b = Number(cols[iWidth]);
@@ -108,15 +127,18 @@ function parseCSV(text){
       }
     }
 
-    if (stone && size) out.push({ stone, size });
+    if (stone && size) out.push({ stone: stone.trim(), size });
   }
   return out;
 }
 
 async function loadMaterialCSV(path){
   const res = await fetch(path, { cache: "no-store" });
-  if (!res.ok) throw new Error("fetch "+path);
-  return parseCSV(await res.text());
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${path} (${res.status})`);
+  }
+  const text = await res.text();
+  return parseCSV(text);
 }
 
 /* ===================== UI HELPERS ===================== */
@@ -127,22 +149,30 @@ function setupGlobalStoneSelector(){
   if (!matSel || !stoneSel) return;
 
   function populate(mat){
-    stoneSel.disabled = true;
-    stoneSel.innerHTML = '<option value="" disabled selected>…</option>';
-    const stones = Object.keys(BY[mat]||{}).sort((a,b)=>a.localeCompare(b));
+    const stonesObj = BY?.[mat] || {};
+    const stones = Object.keys(stonesObj).sort((a,b)=>a.localeCompare(b));
+
     stoneSel.innerHTML = "";
-    const opt0 = new Option("Select stone…","",true,true);
+    const opt0 = new Option(stones.length ? "Select stone…" : "No stones found", "", true, true);
     opt0.disabled = true;
     stoneSel.append(opt0);
+
     stones.forEach(s => stoneSel.append(new Option(s, s)));
     stoneSel.disabled = stones.length === 0;
-    if (hint) hint.textContent = stones.length ? `Loaded ${stones.length} stones for ${mat}` : `No stones found for ${mat}`;
+
+    if (hint) {
+      if (!stones.length) {
+        const csv = CSV_FILES?.[mat] || "(unknown)";
+        hint.textContent = `No stones for ${mat}. Check CSV path (${csv}) and headers.`;
+      } else {
+        hint.textContent = `Loaded ${stones.length} stones for ${mat}.`;
+      }
+    }
   }
 
   matSel.addEventListener("change", ()=>populate(matSel.value));
-  stoneSel.addEventListener("change", ()=>{ try{ suggestPieces(); } catch(_){} });
+  stoneSel.addEventListener("change", ()=>{ try{ suggestPieces(); } catch(e){ console.warn(e); }});
 
-  // Populate immediately for initial value (e.g., "Quartz")
   populate(matSel.value);
 }
 
@@ -483,6 +513,7 @@ let STRICT_INDEX = null;     // { map, normIndex }
 document.addEventListener("DOMContentLoaded", async ()=>{
   ensureRows(30);
 
+  // sinks / fee listeners
   document.querySelectorAll('#sink-options .sink-qty').forEach(input=>{
     const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
     input.addEventListener("input", ()=>{ clamp(); calculate(); });
@@ -491,22 +522,26 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   const fee=document.getElementById("oversizeFeeInput"); 
   if(fee) fee.addEventListener("input", calculate);
 
-  // Load CSVs -> build strict map
-  const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
+  const hint = document.getElementById("stoneHint");
   try{
-    for(const [mat,path] of Object.entries(CSV_FILES)){
-      store[mat] = await loadMaterialCSV(path);
-    }
+    const entries = Object.entries(CSV_FILES);
+    const results = await Promise.all(entries.map(async ([mat, path])=>{
+      const rows = await loadMaterialCSV(path);
+      return [mat, rows];
+    }));
+
+    const store = { Quartz:[], Granite:[], Quartzite:[], Marble:[] };
+    results.forEach(([mat, rows]) => store[mat] = rows);
+
     const STRICT = buildStrictSizeMap(store);
     BY = STRICT.map;
     STRICT_INDEX = STRICT;
-    const hint = document.getElementById("stoneHint");
+
     if (hint) hint.textContent = "CSV data loaded. Choose a material, then stone.";
   }catch(e){
     console.warn("CSV load failed", e);
     BY = { Quartz:{}, Granite:{}, Quartzite:{}, Marble:{} };
-    const hint = document.getElementById("stoneHint");
-    if (hint) hint.textContent = "Could not load CSVs. Check filenames/paths.";
+    if (hint) hint.textContent = `Could not load CSVs: ${e.message || e}`;
   }
 
   setupGlobalStoneSelector();
