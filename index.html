@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prefab Countertop Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Prefab Countertop Calculator</h1>
+  <table id="inputTable">
+    <thead>
+      <tr>
+        <th>Length (in)</th>
+        <th>Width (in)</th>
+        <th>Sink Type</th>
+        <th>SqFt</th>
+        <th>Waste</th>
+        <th>Labor</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><input type="number" class="length" /></td>
+        <td><input type="number" class="width" /></td>
+        <td>
+          <select class="sink">
+            <option value="None">None</option>
+            <option value="Undermount Kitchen">Undermount Kitchen</option>
+            <option value="Topmount Kitchen">Topmount Kitchen</option>
+            <option value="Undermount Bath">Undermount Bath</option>
+            <option value="Topmount Bath">Topmount Bath</option>
+          </select>
+        </td>
+        <td class="sqft">0</td>
+        <td class="waste">0</td>
+        <td class="labor">0</td>
+        <td class="total">0</td>
+      </tr>
+    </tbody>
+  </table>
+  <button onclick="addRow()">Add Row</button>
+  <button onclick="calculate()">Calculate</button>
+  <div id="totals"></div>
+  <script src="script.js"></script>
+</body>
+</html>
