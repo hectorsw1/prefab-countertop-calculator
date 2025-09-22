@@ -242,26 +242,38 @@ function autoFillRows(parts){
       if(parts[idx].label) row.querySelector(".group").value=parts[idx].label; idx++; } }
 }
 
-/* Prefab planning (CSV-aware simplified) */
-function getCandidates(material, type, stone){
-  // Strict: only sizes from CSV for this exact stone in this material
-  const by = BY[material] || {};
-  const set = (stone && by[stone]) ? by[stone] : null;
-  if (!set) return []; // no match => no candidates (forces you to fix the stone name/CSV)
+// === REPLACE your entire getCandidates(...) with this strict version ===
+function getCandidates(material, type, stone) {
+  // Defensive guards so we never throw on undefined
+  const by = (BY && BY[material]) ? BY[material] : null;
+  if (!by) return [];
 
-  // Convert "LxW" -> [L,W] with L >= W
-  const list = [...set].map(parseSizeTuple).filter(Boolean);
+  // Strict: only use sizes listed in CSV for this specific stone
+  const stoneSet = (stone && by[stone]) ? by[stone] : null;
+  if (!stoneSet || stoneSet.size === 0) {
+    // No sizes for this stone -> return empty
+    // (This is intentional to surface CSV/name mismatches)
+    return [];
+  }
 
-  // Optional type-specific filters (still strict; only trimming from CSV pool)
+  // Convert "LxW" strings into [L, W] arrays with L>=W
+  const list = Array.from(stoneSet)
+    .map(parseSizeTuple)
+    .filter(Boolean);
+
+  // Type-specific filters (only trim from the CSV pool; never add new sizes)
   if (type === "Backsplash" || type === "FullBacksplash") {
-    return list.filter(([_, W]) => W <= 7);   // keep only narrow pieces if that’s your rule
+    return list.filter(function (pair) { return pair[1] <= 7; });
   }
   if (type === "Bartop") {
-    return list.filter(([_, W]) => W <= 14);
+    return list.filter(function (pair) { return pair[1] <= 16; });
   }
   if (type === "Island") {
-    return list.filter(([_, W]) => W >= 28);  // islands are wider
+    return list.filter(function (pair) { return pair[1] >= 28; });
   }
+
+  // Countertop: keep CSV-only (optionally constrain to 24–26 if you want)
+  // return list.filter(function (pair) { return pair[1] >= 24 && pair[1] <= 26; });
   return list;
 }
 
