@@ -83,17 +83,50 @@ const prefabSummary = document.getElementById("prefabSummary");
 function parseCSV(text){
   const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim().length);
   if (!lines.length) return [];
+
   const headers = lines[0].split(",").map(h=>h.trim().toLowerCase());
-  const iStone = headers.findIndex(h=>["stone","name","color"].includes(h));
-  const iSize  = headers.findIndex(h=>["size","stock","dimension","dimensions"].includes(h));
-  const out=[]; for (let i=1;i<lines.length;i++){ const cols=lines[i].split(",").map(c=>c.trim());
-    const stone=iStone>=0?cols[iStone]:cols[0]; const size=iSize>=0?cols[iSize]:cols[1];
-    if (stone && size) out.push({stone,size}); }
+
+  const iStone  = headers.findIndex(h => ["stone","name","color"].includes(h));
+  const iSize   = headers.findIndex(h => ["size","dimension","dimensions","stock"].includes(h));
+  const iLen    = headers.findIndex(h => ["length","len","l"].includes(h));
+  const iWidth  = headers.findIndex(h => ["width","wid","w"].includes(h));
+
+  const out = [];
+  for (let i=1;i<lines.length;i++){
+    const cols = lines[i].split(",").map(c=>c.trim());
+    const stone = iStone>=0 ? cols[iStone] : cols[0];
+
+    let size = null;
+
+    if (iSize >= 0 && cols[iSize]) {
+      // Normalize "108×26", "108 X 26", spaces, etc.
+      size = String(cols[iSize]).toLowerCase()
+        .replace(/×/g,"x")
+        .replace(/\s*x\s*/g,"x")
+        .trim();
+      // Optional: enforce L>=W
+      const parts = size.split("x").map(Number);
+      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+        const L = Math.max(parts[0], parts[1]);
+        const W = Math.min(parts[0], parts[1]);
+        size = `${L}x${W}`;
+      } else {
+        size = null;
+      }
+    } else if (iLen >= 0 && iWidth >= 0) {
+      const a = Number(cols[iLen]);
+      const b = Number(cols[iWidth]);
+      if (isFinite(a) && isFinite(b)) {
+        const L = Math.max(a,b), W = Math.min(a,b);
+        size = `${L}x${W}`;
+      }
+    }
+
+    if (stone && size) out.push({ stone, size });
+  }
   return out;
 }
-async function loadMaterialCSV(path){
-  const res = await fetch(path,{cache:"no-store"}); if(!res.ok) throw new Error("fetch "+path); return parseCSV(await res.text());
-}
+
 // new strict build:
 let BY = {};
 
@@ -240,25 +273,33 @@ function getCandidates(material, type, stone) {
   const by = (BY && BY[material]) ? BY[material] : null;
   if (!by) return [];
 
-  // Only sizes for the selected stone (from CSV)
+  // CSV-only base pool for this exact stone
   const stoneSet = (stone && by[stone]) ? by[stone] : null;
   if (!stoneSet || stoneSet.size === 0) return [];
 
   // Convert "LxW" -> [L, W] with L >= W
   const list = Array.from(stoneSet).map(parseSizeTuple).filter(Boolean);
 
-  // Type-specific filters (trim from CSV pool; never add new sizes)
-  if (type === "Backsplash" || type === "FullBacksplash") {
-    return list.filter(pair => pair[1] <= 7);
+  // ---- Type-specific rules ----
+  if (type === "FullBacksplash") {
+    // ✅ Use ALL sizes available from CSV for this stone (no filtering)
+    return list;
   }
+
+  if (type === "Backsplash") {
+    // Regular backsplash: keep narrow pieces only
+    return list.filter(([, W]) => W <= 7);
+  }
+
   if (type === "Bartop") {
-    return list.filter(pair => pair[1] <= 16);
+    return list.filter(([, W]) => W <= 16);
   }
+
   if (type === "Island") {
-    return list.filter(pair => pair[1] >= 28);
+    return list.filter(([, W]) => W >= 28);
   }
-  // Countertop: CSV-only (optionally clamp to 24–26")
-  // return list.filter(pair => pair[1] >= 24 && pair[1] <= 26);
+
+  // Countertop: CSV-only (no extra filtering)
   return list;
 }
 
@@ -392,9 +433,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
   try{
     for(const [mat,path] of Object.entries(CSV_FILES)){ store[mat]=await loadMaterialCSV(path); }
-    BY = buildByMaterialStone(store);
 const STRICT = buildStrictSizeMap(store);
-BY = STRICT.map;               // keep BY for the rest of your code
+BY = STRICT.map;
+window.STRICT_INDEX = STRICT; // optional
+    // keep BY for the rest of your code
 window.STRICT_INDEX = STRICT;  // optional: if you want to use getAllowedSizes elsewhere
 document.getElementById("stoneHint").textContent = "CSV data loaded. Choose a material, then stone.";
   }catch(e){
