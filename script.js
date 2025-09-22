@@ -183,7 +183,7 @@ function getCandidates(material,type,stone){
   const by=BY[material]||{}; const set=new Set();
   if(stone && by[stone]) by[stone].forEach(s=>set.add(s)); else Object.values(by).forEach(S=>S.forEach(s=>set.add(s)));
   const list=[...set].map(parseSizeTuple).filter(Boolean);
-  if(type==="FullBacksplash") return [...list,[108,14],[108,16][96,26],[108,26],[114,26],[120,26][108,28],[108,32],[108,36],[108,39],[108,42],[108,52];
+  if(type==="FullBacksplash") return [...list,[108,14],[108,16][96,26],[108,26],[114,26],[120,26][108,28],[108,32],[108,36],[108,39],[108,42],[108,52]];
   return list;
 }
 function packWidthBucket(parts,cands,width){
