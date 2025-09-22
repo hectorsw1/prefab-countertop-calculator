@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prefab Countertop Calculator + OCR + Prefab & Plywood Suggestions</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Prefab Countertop Calculator</h1>
+
+  <!-- Upload / OCR -->
+  <section class="uploader">
+    <h2>Sketch Upload (Draw → Quote)</h2>
+    <input type="file" id="imageInput" accept="image/*" />
+    <button id="runOcrBtn">Run OCR & Auto-Fill</button>
+    <div id="ocrStatus"></div>
+    <div class="preview"><img id="previewImg" alt="Sketch preview" /></div>
+  </section>
+
+  <!-- Controls -->
+  <section class="controls">
+    <button id="calcBtn" onclick="calculate()">Calculate Totals</button>
+    <button id="suggestBtn" onclick="suggestPieces()">Suggest Prefab Pieces</button>
+    <button id="plyBtn" onclick="suggestPlywood()">Suggest Plywood</button>
+  </section>
+
+  <!-- Sink Options -->
+  <div id="sink-options">
+    <div class="section-title">Optional Sink Selections</div>
+    <div class="sink-grid">
+      <label class="sink-item" data-price="180" for="qty-kstd">
+        <span class="sink-name">Standard Kitchen Sink (Undermount)</span>
+        <input id="qty-kstd" type="number" class="sink-qty" min="0" max="20" value="0">
+      </label>
+      <label class="sink-item" data-price="80" for="qty-bstd">
+        <span class="sink-name">Standard Bathroom Sink (Undermount)</span>
+        <input id="qty-bstd" type="number" class="sink-qty" min="0" max="20" value="0">
+      </label>
+    </div>
+  </div>
+
+  <!-- Material & Stone selectors -->
+  <div id="stone-selectors" class="selectors">
+    <div class="section-title">Material & Stone</div>
+    <label for="materialSelect">Material</label>
+    <select id="materialSelect">
+      <option value="" selected disabled>Select material…</option>
+      <option value="Quartz">Quartz</option>
+      <option value="Granite">Granite</option>
+      <option value="Quartzite">Quartzite</option>
+      <option value="Marble">Marble</option>
+    </select>
+
+    <label for="stoneSelect">Stone</label>
+    <select id="stoneSelect" disabled>
+      <option value="" selected disabled>Select stone…</option>
+    </select>
+    <div id="stoneHint" class="muted" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- Input Table -->
+  <table id="inputTable">
+    <thead>
+      <tr>
+        <th>#</th><th>Group</th><th>Type</th>
+        <th>Length (in)</th><th>Width (in)</th>
+        <th>Material</th><th>Sink</th><th>Refab LF</th>
+        <th>Sqft</th><th>Labor ($)</th><th>Extras ($)</th><th>Total ($)</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="8" style="text-align:right;"><strong>Totals:</strong></td>
+        <td id="totalSqft"></td>
+        <td id="totalLabor"></td>
+        <td id="totalExtras"></td>
+        <td id="totalCost"></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Suggestions -->
+  <h2>Suggested Prefab Pieces (by Material/Stone)</h2>
+  <table id="suggestTable">
+    <thead>
+      <tr>
+        <th>Row</th><th>Group</th><th>Type</th>
+        <th>Cut (L×W)</th><th>Source</th><th>Prefab Used</th><th>Leftovers</th>
+      </tr>
+    </thead>
+    <tbody id="suggestBody"></tbody>
+  </table>
+  <div id="prefabSummary" class="rollup"></div>
+
+  <!-- Plywood -->
+  <h2>Plywood Sheets (48×96 @ $70)</h2>
+  <div id="plySummary"></div>
+  <table id="plyTable"><tbody id="plyBody"></tbody></table>
+
+  <!-- Totals -->
+  <div id="totalsBlock" class="totals-card">
+    <div class="totals-row"><span>Kitchen Sink install:</span><span id="kitchenSinkInstall">$0.00</span></div>
+    <div class="totals-row"><span>Bathroom Sink install:</span><span id="bathSinkInstall">$0.00</span></div>
+    <div class="totals-row"><span>Installation cost:</span><span id="installationCost">$0.00</span></div>
+    <div class="totals-row"><span>Fabrication:</span><span id="fabricationCost">$0.00</span></div>
+    <div class="totals-row"><span>Plywood:</span><span id="plywoodCost">$0.00</span></div>
+    <div class="totals-row"><span>Oversize fee:</span><input id="oversizeFeeInput" type="number" value="0"></div>
+    <hr/>
+    <div class="totals-row grand"><span>Total:</span><span id="grandTotal">$0.00</span></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
