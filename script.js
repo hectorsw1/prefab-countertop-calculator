@@ -5,6 +5,73 @@ const CSV_FILES = {
   Quartzite: "Quartzite_tidy.csv",
   Marble: "Marble_tidy.csv",
 };
+/* ===================== STRICT SIZE HELPERS (ADD THIS) ===================== */
+function norm(s){
+  return String(s||"")
+    .normalize("NFKC")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+// Always store/compare as "LxW" with L >= W (inches)
+function toSizeKey(L, W){
+  const l = Number(L), w = Number(W);
+  const big = Math.max(l, w), small = Math.min(l, w);
+  return `${big}x${small}`;
+}
+
+// if your CSV has a "size" like "108x26"
+function parseSizeKey(sizeStr){
+  const [a,b] = String(sizeStr).toLowerCase().split("x").map(Number);
+  if (!isFinite(a) || !isFinite(b)) return null;
+  const big = Math.max(a,b), small = Math.min(a,b);
+  return `${big}x${small}`;
+}
+
+/** Build strict map: material -> stone -> Set("LxW") */
+function buildStrictSizeMap(store){
+  const out = {};
+  for (const mat of Object.keys(store)){
+    const mKey = norm(mat);
+    out[mat] = {}; // keep original material key (Quartz, Granite...) for your UI
+    for (const r of store[mat]){
+      const stoneRaw = (r.stone||"").trim();
+      const sizeRaw  = (r.size ||"").trim();
+      if(!stoneRaw || !sizeRaw) continue;
+
+      const sKey = norm(stoneRaw);
+      const zKey = parseSizeKey(sizeRaw);
+      if(!zKey) continue;
+
+      // store by the *display* stone name, but normalize when matching
+      // we will keep a normalized index on the side for lookups
+      if (!out[mat][stoneRaw]) out[mat][stoneRaw] = new Set();
+      out[mat][stoneRaw].add(zKey);
+    }
+  }
+  // Build a reverse/normalized index so lookups tolerate spacing/case
+  const normIndex = {};
+  for (const mat of Object.keys(out)){
+    normIndex[mat] = {};
+    for (const stoneLabel of Object.keys(out[mat])){
+      normIndex[mat][norm(stoneLabel)] = stoneLabel; // map normalized -> display
+    }
+  }
+  return { map: out, normIndex };
+}
+
+/** Strictly get allowed sizes for a selected material/stone */
+function getAllowedSizes(material, stone, STRICT){
+  const mat = material;
+  const sNorm = norm(stone);
+  const displayStone = STRICT.normIndex[mat]?.[sNorm];
+  if (!displayStone) return { ok:false, reason:"stone_not_found", sizes:[] };
+  const set = STRICT.map[mat]?.[displayStone];
+  if (!set || set.size === 0) return { ok:false, reason:"no_sizes", sizes:[] };
+  return { ok:true, sizes: Array.from(set) }; // ["108x26", "114x26", ...]
+}
 
 const LABOR_RATE = 14, REFAB_RATE = 30, ISLAND_SURCHARGE_L = 120, ISLAND_SURCHARGE_W = 43, ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 }, PLY_OFF_L = 3, PLY_OFF_W = 2;
@@ -27,8 +94,12 @@ function parseCSV(text){
 async function loadMaterialCSV(path){
   const res = await fetch(path,{cache:"no-store"}); if(!res.ok) throw new Error("fetch "+path); return parseCSV(await res.text());
 }
-function buildByMaterialStone(store){
-  const out={}; for(const mat of Object.keys(store)){ out[mat]={}; for(const r of store[mat]){
+// new strict build:
+const STRICT = buildStrictSizeMap(store);
+BY = STRICT.map;               // keep BY for compatibility if you want
+window.STRICT_INDEX = STRICT;  // save for lookups
+document.getElementById("stoneHint").textContent = "CSV data loaded. Choose a material, then stone.";
+
     const s=(r.stone||"").trim(), z=(r.size||"").trim(); if(!s||!z) continue; (out[mat][s] ||= new Set()).add(z);
   }} return out;
 }
@@ -40,7 +111,7 @@ function setupGlobalStoneSelector(){
   const hint = document.getElementById("stoneHint");
   if (!matSel || !stoneSel) return;
   function populate(mat){
-    stoneSel.disabled = true; stoneSel.innerHTML = '<option value="" disabled selected>Loading…</option>';
+    stoneSel.disabled = true; stoneSel.innerHTML = '<option value="" disabled selected>…</option>';
     const stones = Object.keys(BY[mat]||{}).sort((a,b)=>a.localeCompare(b));
     stoneSel.innerHTML = ""; const opt0=new Option("Select stone…","",true,true); opt0.disabled=true; stoneSel.append(opt0);
     stones.forEach(s=>stoneSel.append(new Option(s,s)));
@@ -175,17 +246,29 @@ function autoFillRows(parts){
 const WIDTH_BUCKET_STEP=0.125;
 function bucketKey(w){ return (Math.round(w/WIDTH_BUCKET_STEP)*WIDTH_BUCKET_STEP).toFixed(3); }
 function parseSizeTuple(sz){ const [L,W]=String(sz).toLowerCase().split('x').map(Number); return (isFinite(L)&&isFinite(W))?[Math.max(L,W),Math.min(L,W)]:null; }
-function getCandidates(material,type,stone){
-  if(type==="Bartop") return [[108,14],[108,16]];
-  if(type==="Countertop") return [[96,26],[108,26],[114,26],[120,26]];
-  if(type==="Island") return [[108,28],[108,32],[108,36],[108,39],[108,42],[108,52]];
-  if(type==="Backsplash") return [[108,4],[108,7]];
-  const by=BY[material]||{}; const set=new Set();
-  if(stone && by[stone]) by[stone].forEach(s=>set.add(s)); else Object.values(by).forEach(S=>S.forEach(s=>set.add(s)));
-  const list=[...set].map(parseSizeTuple).filter(Boolean);
-  if(type==="FullBacksplash") return [...list,[108,14],[108,16][96,26],[108,26],[114,26],[120,26][108,28],[108,32],[108,36],[108,39],[108,42],[108,52]];
+function getCandidates(material, type, stone){
+  // Optional: keep hard-coded fallback for these types
+  if (type === "Bartop")      return [[108,14],[108,16]];
+  if (type === "Countertop")  return [[96,26],[108,26],[114,26],[120,26]];
+  if (type === "Island")      return [[108,28],[108,32],[108,36],[108,39],[108,42],[108,52]];
+  if (type === "Backsplash")  return [[108,4],[108,7]];
+
+  const by = BY[material] || {};
+  if (!stone || !by[stone]) {
+    // no match — return empty to prevent showing sizes from other stones
+    return [];
+  }
+
+  const list = [...by[stone]].map(parseSizeTuple).filter(Boolean);
+
+  if (type === "FullBacksplash") {
+    // Use only this stone's sizes (strict)
+    return list;
+  }
+
   return list;
 }
+
 function packWidthBucket(parts,cands,width){
   const EPS=1e-6; const sizes=cands.filter(([SL,SW])=>SW+EPS>=width).sort((a,b)=>a[0]-b[0]);
   if(!sizes.length) return parts.map(p=>({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}));
