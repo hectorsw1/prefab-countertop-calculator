@@ -10,15 +10,20 @@ const CSV_FILES = {
   Marble:   "Marble_tidy.csv",
 };
 
-// Try these prefixes (in order) until one works at runtime
-const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
+/* ========= CSV FETCH HELPERS ========= */
+function fetchWithTimeout(url, ms = 7000) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { cache: "no-store", signal: c.signal })
+    .finally(() => clearTimeout(t));
+}
 
 async function loadMaterialCSVFlexible(filename){
   let lastErr;
   for (const prefix of CSV_CANDIDATE_PREFIXES){
     const path = `${prefix}${filename}`;
     try {
-      const res = await fetch(path, { cache: "no-store" });
+      const res = await fetchWithTimeout(path, 7000);
       console.log(`[CSV TRY] ${path} → ${res.status}`);
       if (!res.ok) { lastErr = new Error(`Failed ${path} (${res.status})`); continue; }
       const text = await res.text();
@@ -27,6 +32,43 @@ async function loadMaterialCSVFlexible(filename){
       lastErr = new Error(`OK but empty rows: ${path}`);
     } catch (e) {
       lastErr = e;
+      console.warn(`[CSV TRY] ${path} error →`, e.name === 'AbortError' ? 'Timeout' : e.message);
+    }
+  }
+  throw lastErr || new Error(`Could not load ${filename}`);
+}
+
+// Try these prefixes (in order) until one works at runtime
+const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
+
+// ❌ delete / overwrite your old loadMaterialCSVFlexible here
+
+// ✅ replace with this:
+function fetchWithTimeout(url, ms = 7000) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { cache: "no-store", signal: c.signal })
+    .finally(() => clearTimeout(t));
+}
+
+async function loadMaterialCSVFlexible(filename){
+  let lastErr;
+  for (const prefix of CSV_CANDIDATE_PREFIXES){
+    const path = `${prefix}${filename}`;
+    try {
+      const res = await fetchWithTimeout(path, 7000);
+      console.log(`[CSV TRY] ${path} → ${res.status}`);
+      if (!res.ok) {
+        lastErr = new Error(`Failed ${path} (${res.status})`);
+        continue;
+      }
+      const text = await res.text();
+      const rows = parseCSV(text);
+      if (rows.length > 0) return rows;
+      lastErr = new Error(`OK but empty rows: ${path}`);
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[CSV TRY] ${path} error →`, e.name === 'AbortError' ? 'Timeout' : e.message);
     }
   }
   throw lastErr || new Error(`Could not load ${filename}`);
