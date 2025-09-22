@@ -82,6 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const feeInput = document.getElementById('oversizeFeeInput');
   if (feeInput) feeInput.addEventListener('input', () => calculate());
 
+  // NEW — listen for sealer + glue
+  const sealerInput = document.getElementById('sealerFeeInput');
+  if (sealerInput) sealerInput.addEventListener('input', () => calculate());
+
+  const quartzGlueInput = document.getElementById('quartzGlueInput');
+  if (quartzGlueInput) quartzGlueInput.addEventListener('input', () => calculate());
+
   calculate();
 });
 
@@ -181,6 +188,8 @@ function calculate() {
 
   const addons = getSinkAddonsSplit();
   const oversizeFee = Number(document.getElementById('oversizeFeeInput')?.value || 0) || 0;
+  const sealerFee   = Number(document.getElementById('sealerFeeInput')?.value || 0) || 0;
+  const quartzGlue  = Number(document.getElementById('quartzGlueInput')?.value || 0) || 0;
 
   const tableSqftEl   = document.getElementById("totalSqft");
   const tableLaborEl  = document.getElementById("totalLabor");
@@ -189,24 +198,18 @@ function calculate() {
   if (tableSqftEl)   tableSqftEl.innerText   = sumSqft.toFixed(2);
   if (tableLaborEl)  tableLaborEl.innerText  = sumLabor.toFixed(2);
   if (tableExtrasEl) tableExtrasEl.innerText = sumExtras.toFixed(2);
-  if (tableCostEl)   tableCostEl.innerText   = (sumTotal + addons.total + currentPlywoodCost + oversizeFee).toFixed(2);
+  if (tableCostEl)   tableCostEl.innerText   = (
+    sumTotal + addons.total + currentPlywoodCost + oversizeFee + sealerFee + quartzGlue
+  ).toFixed(2);
 
-  let kitchenInstallRows = 0, bathInstallRows = 0, fabricationCost = 0;
-  const rowsAgain = document.querySelectorAll("#inputTable tbody tr");
-  rowsAgain.forEach(row => {
-    const sinkType = row.querySelector(".sink")?.value || "";
-    if (sinkType === "kitchen_sink") kitchenInstallRows += 180;
-    else if (sinkType === "bathroom_sink") bathInstallRows += 80;
-    else if (sinkType === "bar_sink") kitchenInstallRows += 80;
-    fabricationCost += (parseFloat(row.querySelector(".refab")?.value) || 0) * REFAB_RATE;
-  });
-
-  document.getElementById("kitchenSinkInstall").textContent = `$${(kitchenInstallRows + addons.kitchen).toFixed(2)}`;
-  document.getElementById("bathSinkInstall").textContent    = `$${(bathInstallRows + addons.bathroom).toFixed(2)}`;
+  document.getElementById("kitchenSinkInstall").textContent = `$${(0 + addons.kitchen).toFixed(2)}`;
+  document.getElementById("bathSinkInstall").textContent    = `$${(0 + addons.bathroom).toFixed(2)}`;
   document.getElementById("installationCost").textContent   = `$${sumLabor.toFixed(2)}`;
-  document.getElementById("fabricationCost").textContent    = `$${fabricationCost.toFixed(2)}`;
+  document.getElementById("fabricationCost").textContent    = `$${(Array.from(document.querySelectorAll("#inputTable tbody tr")).reduce((acc, r) => acc + ((parseFloat(r.querySelector(".refab")?.value)||0) * REFAB_RATE), 0)).toFixed(2)}`;
   document.getElementById("plywoodCost").textContent        = `$${currentPlywoodCost.toFixed(2)}`;
-  document.getElementById("grandTotal").textContent         = `$${(sumTotal + addons.total + currentPlywoodCost + oversizeFee).toFixed(2)}`;
+  document.getElementById("grandTotal").textContent         = `$${(
+    sumTotal + addons.total + currentPlywoodCost + oversizeFee + sealerFee + quartzGlue
+  ).toFixed(2)}`;
 }
 
 /* ===================== OCR (Tesseract.js) ===================== */
@@ -262,9 +265,9 @@ function parseDimensions(text) {
   let match;
   while ((match = dimPattern.exec(cleaned)) !== null) {
     const label = match[1] ? String(match[1]).trim() : "";
-    const a = toInches(match[2]); // first number = Length
-    const b = toInches(match[3]); // second number = Width
-    const length = a;             // KEEP ORDER (do not rotate)
+    const a = toInches(match[2]);
+    const b = toInches(match[3]);
+    const length = a; // KEEP ORDER (do not rotate)
     const width  = b;
     results.push({ label, length, width });
   }
@@ -326,24 +329,21 @@ function asSL_SW(size) {
   return [SL, SW];
 }
 
-// === Shared pool for Countertop & Island ===
+// Shared pool for Countertop & Island
 function poolKeyForPack(mat, typ) {
   if (typ === "Countertop" || typ === "Island") return `${mat}|CT_ISL`;
   if (typ === "FullBacksplash") return `${mat}|FullBacksplash`;
   return `${mat}|${typ}`;
 }
 
-// Candidates for each type (and shared pools)
 function getCandidatesFor(material, type) {
   if (type === "FullBacksplash") {
-    // Can be cut from Countertop, Island, or Bartop
     return []
       .concat(PREFAB[material]?.Countertop || [],
               PREFAB[material]?.Island     || [],
               PREFAB[material]?.Bartop     || []);
   }
   if (type === "Countertop" || type === "Island" || type === "CT_ISL") {
-    // Shared pool of Countertop + Island
     return []
       .concat(PREFAB[material]?.Countertop || [],
               PREFAB[material]?.Island     || []);
@@ -353,7 +353,7 @@ function getCandidatesFor(material, type) {
     : [];
 }
 
-/* ---------- shrink bins (variable width aware) ---------- */
+/* shrink bins (variable width aware) */
 function shrinkBinsVarWidth(bins, candidates) {
   const cands = candidates.map(asSL_SW);
   bins.forEach(b => {
@@ -368,19 +368,17 @@ function shrinkBinsVarWidth(bins, candidates) {
       b.SW = best[1];
       b.remaining = b.SL - usedL;
     } else {
-      // fallback: keep current SL/SW and sync remaining
       b.remaining = Math.max(0, (b.SL||0) - usedL);
     }
   });
   return bins;
 }
 
-/* ---------- fewest slabs first for variable widths ---------- */
+/* fewest slabs first for variable widths (CT/Island shared) */
 function packFewestSlabsVarWidth(parts, candidates) {
   const EPS = 1e-6;
   const sizes = candidates.map(asSL_SW);
 
-  // index candidates by SW threshold for quick lookups
   function maxSLFor(minW) {
     let mx = -Infinity, swFor = null;
     sizes.forEach(([SL,SW]) => {
@@ -390,16 +388,15 @@ function packFewestSlabsVarWidth(parts, candidates) {
   }
 
   const bins = [];
-  // Cut order: widest first (so islands feed tops), then area, then length — never rotate.
+  // Widest first, then area, then length — never rotate
   const list = parts.slice().sort((a, b) => {
-    if (b.W !== a.W) return b.W - a.W;          // 1) width desc (e.g., 39″ before 26″)
+    if (b.W !== a.W) return b.W - a.W;
     const aa = a.L * a.W, bb = b.L * b.W;
-    if (bb !== aa) return bb - aa;              // 2) area desc
-    return b.L - a.L;                            // 3) length desc
+    if (bb !== aa) return bb - aa;
+    return b.L - a.L;
   });
 
   for (const p of list) {
-    // try reuse: best-fit by remaining length AND width capacity
     let bestIdx = -1, bestAfter = Infinity;
     for (let i=0;i<bins.length;i++){
       const b = bins[i];
@@ -415,10 +412,8 @@ function packFewestSlabsVarWidth(parts, candidates) {
       continue;
     }
 
-    // open new slab using the largest length that can satisfy required width
     const open = maxSLFor(p.W);
     if (!open) {
-      // no prefab can satisfy width requirement → nofit
       bins.push({
         SL: p.L, SW: p.W, remaining: 0, nofit: true,
         cuts: [{ part: p, cutL: p.L, cutW: p.W, nofit: true }]
@@ -435,12 +430,12 @@ function packFewestSlabsVarWidth(parts, candidates) {
   return shrinkBinsVarWidth(bins, candidates);
 }
 
-/* ---------- fixed-width planner (for non-CT/ISL) ---------- */
+/* fixed-width planner (for non-CT/ISL) */
 function shrinkBins(bins, candidates, width) {
   const candsAsc = candidates
     .map(asSL_SW)
     .filter(([SL,SW]) => SW + 1e-6 >= width)
-    .sort((a,b) => a[0] - b[0]); // smallest first
+    .sort((a,b) => a[0] - b[0]);
 
   bins.forEach(b => {
     if (!b.SL || !b.cuts || b.nofit) return;
@@ -506,24 +501,21 @@ function suggestPieces() {
   const suggestBody = document.getElementById("suggestBody");
   suggestBody.innerHTML = "";
 
-  // Collect parts from table (respect typed L × W — no rotation)
+  // Collect parts
   const rows = Array.from(document.querySelectorAll("#inputTable tbody tr"));
   const parts = [];
   rows.forEach((row, i) => {
     const L = parseFloat(row.querySelector(".length")?.value) || 0;
     const W = parseFloat(row.querySelector(".width")?.value) || 0;
     const mat = row.querySelector(".material")?.value || "Quartz";
-    theTyp = row.querySelector(".ptype")?.value || "Countertop";
-    const typ = theTyp;
+    const typ = row.querySelector(".ptype")?.value || "Countertop";
     const group = (row.querySelector(".group")?.value || "").trim();
     if (L > 0 && W > 0) parts.push({ idx: i+1, group, L, W, mat, typ, area: L*W });
   });
   if (!parts.length) return;
 
-  // Build pools:
-  // - CT/ISL: single combined array (variable width planning)
-  // - Others: Map(widthKey -> array) as before
-  const pools = new Map(); // poolKey -> array OR Map
+  // Pools
+  const pools = new Map();
   parts.forEach(p => {
     const key = poolKeyForPack(p.mat, p.typ);
     if (key.endsWith("CT_ISL")) {
@@ -538,10 +530,9 @@ function suggestPieces() {
     }
   });
 
-  // Roll-up accumulators
-  const pieceCounts = {};  // { Material: { 'SL×SW': count } }
+  // Roll-ups
+  const pieceCounts = {};
   const leftoverPieces = [];
-
   const addCount = (mat, SL, SW) => {
     const k = `${SL.toFixed(0)}×${SW.toFixed(0)}`;
     pieceCounts[mat] = pieceCounts[mat] || {};
@@ -553,11 +544,10 @@ function suggestPieces() {
     suggestBody.appendChild(tr);
   };
 
-  // Plan per pool
+  // Plan
   pools.forEach((bucket, pkey) => {
     const [mat, typKey] = pkey.split("|");
 
-    // CT/ISL combined variable-width path
     if (typKey === "CT_ISL") {
       const candidates = getCandidatesFor(mat, "CT_ISL");
       const bins = packFewestSlabsVarWidth(bucket, candidates);
@@ -574,9 +564,7 @@ function suggestPieces() {
           running -= c.cutL;
           const cutStr = `${c.cutL.toFixed(2)}×${c.cutW.toFixed(2)}`;
           const prefabStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})` : "-";
-          const leftStr = b.SL
-            ? `${Math.max(0, running).toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})`
-            : "-";
+          const leftStr = b.SL ? `${Math.max(0, running).toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})` : "-";
           const arr = placements.get(c.part.idx) || [];
           arr.push({ group: c.part.group || "", typ: c.part.typ, cutStr, prefabStr, leftStr, nofit: c.nofit });
           placements.set(c.part.idx, arr);
@@ -595,10 +583,10 @@ function suggestPieces() {
         }
       });
 
-      return; // done with CT/ISL pool
+      return;
     }
 
-    // ---------- original fixed-width path for other types ----------
+    // others: fixed width
     bucket.forEach((partsW) => {
       const width = partsW[0].W;
       const { mat: _m, typ } = partsW[0];
@@ -622,9 +610,7 @@ function suggestPieces() {
           running -= c.cutL;
           const cutStr = `${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
           const prefabStr = (b.SL && b.SW) ? `${b.SL.toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})` : "-";
-          const leftStr = b.SL
-            ? `${Math.max(0, running).toFixed(2)}×${width.toFixed(2)} (Piece #${bi+1})`
-            : "-";
+          const leftStr = b.SL ? `${Math.max(0, running).toFixed(2)}×${width.toFixed(2)} (Piece #${bi+1})` : "-";
           const arr = placements.get(c.part.idx) || [];
           arr.push({ group: c.part.group, typ: c.part.typ, cutStr, prefabStr, leftStr, nofit: c.nofit });
           placements.set(c.part.idx, arr);
@@ -645,7 +631,7 @@ function suggestPieces() {
     });
   });
 
-  // ===== Roll-up =====
+  // Roll-up
   const summaryEl = document.getElementById('prefabSummary');
   if (summaryEl) {
     const rowsHtml = Object.keys(pieceCounts).length
@@ -684,7 +670,7 @@ function computePlywoodPlan() {
 
   rows.forEach(row => {
     const type = (row.querySelector(".ptype")?.value || "").trim();
-    if (!["Countertop","Island","Bartop"].includes(type)) return; // exclude backsplash
+    if (!["Countertop","Island","Bartop"].includes(type)) return;
     const rawL = parseFloat(row.querySelector(".length")?.value) || 0;
     const rawW = parseFloat(row.querySelector(".width")?.value)  || 0;
 
@@ -703,7 +689,7 @@ function computePlywoodPlan() {
 
   pieces.sort((a,b)=> b.area - a.area);
 
-  const sheets = []; // [{leftovers:[{L,W}], cuts:[{L,W}]}]
+  const sheets = [];
   const newSheet = () => ({ leftovers: [{L: PLY_SHEET.L, W: PLY_SHEET.W}], cuts: [] });
 
   pieces.forEach(p => {
@@ -750,7 +736,6 @@ function computePlywoodPlan() {
 function suggestPlywood() {
   const { sheets, cost } = computePlywoodPlan();
 
-  // render table
   const plyBody = document.getElementById("plyBody");
   const plySummary = document.getElementById("plySummary");
   plyBody.innerHTML = "";
@@ -768,6 +753,5 @@ function suggestPlywood() {
     plySummary.textContent = `Sheets used: ${currentPlywoodSheets} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood piece size = L–3", W–2")`;
   }
 
-  // refresh totals AFTER state set
   calculate();
 }
