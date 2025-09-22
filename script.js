@@ -393,7 +393,10 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   try{
     for(const [mat,path] of Object.entries(CSV_FILES)){ store[mat]=await loadMaterialCSV(path); }
     BY = buildByMaterialStone(store);
-    document.getElementById("stoneHint").textContent = "CSV data loaded. Choose a material, then stone.";
+const STRICT = buildStrictSizeMap(store);
+BY = STRICT.map;               // keep BY for the rest of your code
+window.STRICT_INDEX = STRICT;  // optional: if you want to use getAllowedSizes elsewhere
+document.getElementById("stoneHint").textContent = "CSV data loaded. Choose a material, then stone.";
   }catch(e){
     console.warn("CSV load failed", e); BY = { Quartz:{}, Granite:{}, Quartzite:{}, Marble:{} };
     document.getElementById("stoneHint").textContent = "Could not load CSVs. Check filenames/paths.";
