@@ -26,7 +26,10 @@ async function loadMaterialCSVFlexible(filename){
     try {
       const res = await fetchWithTimeout(path, 7000);
       console.log(`[CSV TRY] ${path} → ${res.status}`);
-      if (!res.ok) { lastErr = new Error(`Failed ${path} (${res.status})`); continue; }
+      if (!res.ok) {
+        lastErr = new Error(`Failed ${path} (${res.status})`);
+        continue;
+      }
       const text = await res.text();
       const rows = parseCSV(text);
       if (rows.length > 0) return rows;
@@ -38,9 +41,6 @@ async function loadMaterialCSVFlexible(filename){
   }
   throw lastErr || new Error(`Could not load ${filename}`);
 }
-
-// Try these prefixes (in order) until one works at runtime
-const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
 
 // ❌ delete / overwrite your old loadMaterialCSVFlexible here
 
