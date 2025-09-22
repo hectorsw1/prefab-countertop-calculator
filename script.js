@@ -3,12 +3,14 @@
    - Next/Vite:   /public/csv/*.csv  (served at /csv/...)
    - Static site: /csv/*.csv next to index.html
 */
+/* ========= CSV SETTINGS ========= */
 const CSV_FILES = {
   Quartz:   "Quartz_tidy.csv",
   Granite:  "Granite_tidy.csv",
   Quartzite:"Quartzite_tidy.csv",
   Marble:   "Marble_tidy.csv",
 };
+
 const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
 
 /* ========= FLEXIBLE LOADER WITH TIMEOUT ========= */
@@ -41,6 +43,7 @@ async function loadMaterialCSVFlexible(filename){
   }
   throw lastErr || new Error(`Could not load ${filename}`);
 }
+
 
 // ❌ delete / overwrite your old loadMaterialCSVFlexible here
 
