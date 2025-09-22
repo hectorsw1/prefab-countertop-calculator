@@ -177,7 +177,9 @@ function bucketKey(w){ return (Math.round(w/WIDTH_BUCKET_STEP)*WIDTH_BUCKET_STEP
 function parseSizeTuple(sz){ const [L,W]=String(sz).toLowerCase().split('x').map(Number); return (isFinite(L)&&isFinite(W))?[Math.max(L,W),Math.min(L,W)]:null; }
 function getCandidates(material,type,stone){
   if(type==="Bartop") return [[108,16],[108,14]];
-  if(type==="Backsplash") return [[108,4]];
+  if(type==="Countertop") return [[96,24],[108,26],[114,26],[120,26]];
+  if(type==="Island") return [[108,28],[108,32],[108,36],[108,39],[108,42],[108,52]];
+  if(type==="Backsplash") return [[108,4],[108,7]];
   const by=BY[material]||{}; const set=new Set();
   if(stone && by[stone]) by[stone].forEach(s=>set.add(s)); else Object.values(by).forEach(S=>S.forEach(s=>set.add(s)));
   const list=[...set].map(parseSizeTuple).filter(Boolean);
@@ -254,7 +256,7 @@ function computePlywoodPlan(){
   const rows=Array.from(tableBody.querySelectorAll("tr")); const pcs=[];
   rows.forEach(r=>{
     const typ=(r.querySelector(".ptype")?.value||"").trim();
-    if(!["Countertop","Island","Bartop"].includes(typ)) return;
+    if(!["Countertop","Island","Bartop","Backsplash"].includes(typ)) return;
     const RL=parseFloat(r.querySelector(".length")?.value)||0;
     const RW=parseFloat(r.querySelector(".width")?.value)||0;
     let L=Math.max(RL-PLY_OFF_L, RW-PLY_OFF_W);
