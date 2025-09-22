@@ -5,7 +5,8 @@ const CSV_FILES = {
   Quartzite: "Quartzite_tidy.csv",
   Marble: "Marble_tidy.csv",
 };
-/* ===================== STRICT SIZE HELPERS (ADD THIS) ===================== */
+
+/* ===================== STRICT SIZE HELPERS ===================== */
 function norm(s){
   return String(s||"")
     .normalize("NFKC")
@@ -15,64 +16,51 @@ function norm(s){
     .toLowerCase();
 }
 
-// Always store/compare as "LxW" with L >= W (inches)
-function toSizeKey(L, W){
-  const l = Number(L), w = Number(W);
-  const big = Math.max(l, w), small = Math.min(l, w);
-  return `${big}x${small}`;
-}
-
-// if your CSV has a "size" like "108x26"
+// "108x26" -> keep as string; arrays are made with parseSizeTuple
 function parseSizeKey(sizeStr){
-  const [a,b] = String(sizeStr).toLowerCase().split("x").map(Number);
+  const [a,b] = String(sizeStr).toLowerCase().replace(/×/g,"x").split("x").map(Number);
   if (!isFinite(a) || !isFinite(b)) return null;
-  const big = Math.max(a,b), small = Math.min(a,b);
-  return `${big}x${small}`;
+  const L = Math.max(a,b), W = Math.min(a,b);
+  return `${L}x${W}`;
 }
 
-/** Build strict map: material -> stone -> Set("LxW") */
-function buildSizeMap(store){
-  const out = {};
+// Build strict map: Material -> Stone(label) -> Set("LxW")
+function buildStrictSizeMap(store){
+  const map = {};
+  const normIndex = {}; // Material -> normalized stone -> display stone
+
   for (const mat of Object.keys(store)){
-    const mKey = norm(mat);
-    out[mat] = {}; // keep original material key (Quartz, Granite...) for your UI
-    for (const r of store[mat]){
-      const stoneRaw = (r.stone||"").trim();
-      const sizeRaw  = (r.size ||"").trim();
-      if(!stoneRaw || !sizeRaw) continue;
-
-      const sKey = norm(stoneRaw);
-      const zKey = parseSizeKey(sizeRaw);
-      if(!zKey) continue;
-
-      // store by the *display* stone name, but normalize when matching
-      // we will keep a normalized index on the side for lookups
-      if (!out[mat][stoneRaw]) out[mat][stoneRaw] = new Set();
-      out[mat][stoneRaw].add(zKey);
-    }
-  }
-  // Build a reverse/normalized index so lookups tolerate spacing/case
-  const normIndex = {};
-  for (const mat of Object.keys(out)){
+    map[mat] = {};
     normIndex[mat] = {};
-    for (const stoneLabel of Object.keys(out[mat])){
-      normIndex[mat][norm(stoneLabel)] = stoneLabel; // map normalized -> display
+
+    for (const row of store[mat]){
+      const stoneRaw = (row.stone || "").trim();
+      const sizeRaw  = (row.size  || "").trim();
+      if (!stoneRaw || !sizeRaw) continue;
+
+      const key = parseSizeKey(sizeRaw);
+      if (!key) continue;
+
+      if (!map[mat][stoneRaw]) map[mat][stoneRaw] = new Set();
+      map[mat][stoneRaw].add(key);
+
+      // maintain normalized index
+      normIndex[mat][norm(stoneRaw)] = stoneRaw;
     }
   }
-  return { map: out, normIndex };
+  return { map, normIndex };
 }
 
-/** Strictly get allowed sizes for a selected material/stone */
+// Optional: expose allowed sizes if you need it elsewhere
 function getAllowedSizes(material, stone, STRICT){
-  const mat = material;
-  const sNorm = norm(stone);
-  const displayStone = STRICT.normIndex[mat]?.[sNorm];
-  if (!displayStone) return { ok:false, reason:"stone_not_found", sizes:[] };
-  const set = STRICT.map[mat]?.[displayStone];
-  if (!set || set.size === 0) return { ok:false, reason:"no_sizes", sizes:[] };
-  return { ok:true, sizes: Array.from(set) }; // ["108x26", "114x26", ...]
+  const displayStone = STRICT.normIndex[material]?.[norm(stone)];
+  if (!displayStone) return { ok:false, sizes:[] };
+  const set = STRICT.map[material]?.[displayStone];
+  if (!set || set.size === 0) return { ok:false, sizes:[] };
+  return { ok:true, sizes: Array.from(set) };
 }
 
+/* ===================== CONSTANTS ===================== */
 const LABOR_RATE = 14, REFAB_RATE = 30, ISLAND_SURCHARGE_L = 120, ISLAND_SURCHARGE_W = 43, ISLAND_SURCHARGE_COST = 150;
 const PLY_SHEET = { L: 96, W: 48, COST: 70 }, PLY_OFF_L = 3, PLY_OFF_W = 2;
 
@@ -80,12 +68,13 @@ const tableBody = document.getElementById("tableBody");
 const suggestBody = document.getElementById("suggestBody");
 const prefabSummary = document.getElementById("prefabSummary");
 
+/* ===================== CSV PARSER ===================== */
+// Accepts: "size"/"dimension(s)" OR separate "length"/"width"
 function parseCSV(text){
   const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim().length);
   if (!lines.length) return [];
 
   const headers = lines[0].split(",").map(h=>h.trim().toLowerCase());
-
   const iStone  = headers.findIndex(h => ["stone","name","color"].includes(h));
   const iSize   = headers.findIndex(h => ["size","dimension","dimensions","stock"].includes(h));
   const iLen    = headers.findIndex(h => ["length","len","l"].includes(h));
@@ -95,27 +84,24 @@ function parseCSV(text){
   for (let i=1;i<lines.length;i++){
     const cols = lines[i].split(",").map(c=>c.trim());
     const stone = iStone>=0 ? cols[iStone] : cols[0];
+    if (!stone) continue;
 
     let size = null;
 
     if (iSize >= 0 && cols[iSize]) {
-      // Normalize "108×26", "108 X 26", spaces, etc.
       size = String(cols[iSize]).toLowerCase()
         .replace(/×/g,"x")
         .replace(/\s*x\s*/g,"x")
         .trim();
-      // Optional: enforce L>=W
       const parts = size.split("x").map(Number);
-      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
+      if (!(parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1]))) size = null;
+      else {
         const L = Math.max(parts[0], parts[1]);
         const W = Math.min(parts[0], parts[1]);
         size = `${L}x${W}`;
-      } else {
-        size = null;
       }
     } else if (iLen >= 0 && iWidth >= 0) {
-      const a = Number(cols[iLen]);
-      const b = Number(cols[iWidth]);
+      const a = Number(cols[iLen]), b = Number(cols[iWidth]);
       if (isFinite(a) && isFinite(b)) {
         const L = Math.max(a,b), W = Math.min(a,b);
         size = `${L}x${W}`;
@@ -127,24 +113,37 @@ function parseCSV(text){
   return out;
 }
 
-// new strict build:
-let BY = {};
+async function loadMaterialCSV(path){
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error("fetch "+path);
+  return parseCSV(await res.text());
+}
 
+/* ===================== UI HELPERS ===================== */
 function setupGlobalStoneSelector(){
   const matSel = document.getElementById("materialSelect");
   const stoneSel = document.getElementById("stoneSelect");
   const hint = document.getElementById("stoneHint");
   if (!matSel || !stoneSel) return;
+
   function populate(mat){
-    stoneSel.disabled = true; stoneSel.innerHTML = '<option value="" disabled selected>…</option>';
+    stoneSel.disabled = true;
+    stoneSel.innerHTML = '<option value="" disabled selected>…</option>';
     const stones = Object.keys(BY[mat]||{}).sort((a,b)=>a.localeCompare(b));
-    stoneSel.innerHTML = ""; const opt0=new Option("Select stone…","",true,true); opt0.disabled=true; stoneSel.append(opt0);
-    stones.forEach(s=>stoneSel.append(new Option(s,s)));
-    stoneSel.disabled = stones.length===0;
-    if(hint) hint.textContent = stones.length ? `Loaded ${stones.length} stones for ${mat}` : `No stones found for ${mat}`;
+    stoneSel.innerHTML = "";
+    const opt0 = new Option("Select stone…","",true,true);
+    opt0.disabled = true;
+    stoneSel.append(opt0);
+    stones.forEach(s => stoneSel.append(new Option(s, s)));
+    stoneSel.disabled = stones.length === 0;
+    if (hint) hint.textContent = stones.length ? `Loaded ${stones.length} stones for ${mat}` : `No stones found for ${mat}`;
   }
+
   matSel.addEventListener("change", ()=>populate(matSel.value));
-  stoneSel.addEventListener("change", ()=>{ try{ suggestPieces(); }catch(_){}});
+  stoneSel.addEventListener("change", ()=>{ try{ suggestPieces(); } catch(_){} });
+
+  // Populate immediately for initial value (e.g., "Quartz")
+  populate(matSel.value);
 }
 
 function ensureRows(n){
@@ -181,15 +180,21 @@ function ensureRows(n){
   }
 }
 
+/* ===================== CALCULATOR ===================== */
 function getSinkAddonsSplit(){
   const items=document.querySelectorAll('#sink-options .sink-item'); let kitchen=0,bathroom=0;
-  items.forEach(item=>{ const price=Number(item.dataset.price||0);
-    const qty=Math.min(20,Math.max(0,parseInt(item.querySelector('.sink-qty')?.value||'0',10))); if(!qty) return;
-    const id=item.querySelector('.sink-qty')?.id||''; const amount=price*qty;
-    if(id.startsWith('qty-b')) bathroom+=amount; else kitchen+=amount; });
+  items.forEach(item=>{
+    const price=Number(item.dataset.price||0);
+    const qty=Math.min(20,Math.max(0,parseInt(item.querySelector('.sink-qty')?.value||'0',10)));
+    if(!qty) return;
+    const id=item.querySelector('.sink-qty')?.id||'';
+    const amount=price*qty;
+    if(id.startsWith('qty-b')) bathroom+=amount; else kitchen+=amount;
+  });
   return {kitchen,bathroom,total:kitchen+bathroom};
 }
 let currentPlywoodCost=0;
+
 function calculate(){
   const rows=document.querySelectorAll("#inputTable tbody tr");
   let sumSqft=0,sumLabor=0,sumExtras=0,sumTotal=0;
@@ -200,8 +205,12 @@ function calculate(){
     const sinkType=row.querySelector(".sink")?.value||"";
     const refabLF=parseFloat(row.querySelector(".refab")?.value)||0;
     const sqft=Math.ceil((L*W)/144);
-    let sinkCost=0; if(sinkType==="kitchen_sink") sinkCost=180; else if(sinkType==="bathroom_sink") sinkCost=80; else if(sinkType==="bar_sink") sinkCost=80;
-    const labor=sqft*LABOR_RATE; let extras=sinkCost + refabLF*REFAB_RATE;
+    let sinkCost=0; 
+    if(sinkType==="kitchen_sink") sinkCost=180; 
+    else if(sinkType==="bathroom_sink") sinkCost=80; 
+    else if(sinkType==="bar_sink") sinkCost=80;
+    const labor=sqft*LABOR_RATE; 
+    let extras=sinkCost + refabLF*REFAB_RATE;
     if(ptype==="Island" && L>=ISLAND_SURCHARGE_L && W>=ISLAND_SURCHARGE_W) extras+=ISLAND_SURCHARGE_COST;
     const total=labor+extras;
     row.querySelector(".sqft").innerText=sqft.toFixed(2);
@@ -224,17 +233,20 @@ function calculate(){
   document.getElementById("grandTotal").textContent        =`$${(sumTotal+addons.total+currentPlywoodCost+fee).toFixed(2)}`;
 }
 
-/* OCR (light) */
+/* ===================== OCR (light) ===================== */
 const imageInput=document.getElementById("imageInput");
 const runOcrBtn=document.getElementById("runOcrBtn");
 const ocrStatus=document.getElementById("ocrStatus");
 const previewImg=document.getElementById("previewImg");
 let uploadedImageURL=null;
+
 if(imageInput){ imageInput.addEventListener("change",e=>{
-  const f=e.target.files?.[0]; if(!f) return; uploadedImageURL=URL.createObjectURL(f);
+  const f=e.target.files?.[0]; if(!f) return; 
+  uploadedImageURL=URL.createObjectURL(f);
   if(previewImg){ previewImg.src=uploadedImageURL; previewImg.style.display="block"; }
   if(ocrStatus) ocrStatus.textContent="Image loaded. Click 'Run OCR & Auto-Fill'.";
 });}
+
 if(runOcrBtn){ runOcrBtn.addEventListener("click", async ()=>{
   if(!uploadedImageURL){ ocrStatus.textContent="Please choose a sketch image first."; return; }
   ocrStatus.textContent="Running OCR…";
@@ -245,6 +257,7 @@ if(runOcrBtn){ runOcrBtn.addEventListener("click", async ()=>{
     autoFillRows(parts); ocrStatus.textContent=`Auto-filled ${parts.length} item(s).`;
   }catch(e){ console.error(e); ocrStatus.textContent="OCR failed."; }
 });}
+
 function parseDimensions(text){
   const cleaned=text.replace(/\s+/g,' ').replace(/[,;]/g,' ').trim(); const out=[];
   const re=/(?:([A-Za-z0-9]+)[:\)\-]?\s*)?(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)\s*(?:in|")?\s*[xX×]\s*(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)/g;
@@ -267,63 +280,73 @@ function autoFillRows(parts){
       if(parts[idx].label) row.querySelector(".group").value=parts[idx].label; idx++; } }
 }
 
-// === REPLACE your entire getCandidates(...) with this strict version ===
+/* ===================== PREFAB PLANNING ===================== */
+const WIDTH_BUCKET_STEP = 0.125;
+function bucketKey(w){ return (Math.round(w/WIDTH_BUCKET_STEP)*WIDTH_BUCKET_STEP).toFixed(3); }
+function parseSizeTuple(sz){
+  const [L,W] = String(sz).toLowerCase().split('x').map(Number);
+  if (!isFinite(L) || !isFinite(W)) return null;
+  return [Math.max(L,W), Math.min(L,W)];
+}
+
+// STRICT: only CSV sizes for the selected stone/material
 function getCandidates(material, type, stone) {
-  // Guard
   const by = (BY && BY[material]) ? BY[material] : null;
   if (!by) return [];
 
-  // CSV-only base pool for this exact stone
   const stoneSet = (stone && by[stone]) ? by[stone] : null;
   if (!stoneSet || stoneSet.size === 0) return [];
 
-  // Convert "LxW" -> [L, W] with L >= W
   const list = Array.from(stoneSet).map(parseSizeTuple).filter(Boolean);
 
-  // ---- Type-specific rules ----
-  if (type === "FullBacksplash") {
-    // ✅ Use ALL sizes available from CSV for this stone (no filtering)
-    return list;
-  }
+  // FullBacksplash uses ALL sizes listed for this stone (no width filter)
+  if (type === "FullBacksplash") return list;
 
-  if (type === "Backsplash") {
-    // Regular backsplash: keep narrow pieces only
-    return list.filter(([, W]) => W <= 7);
-  }
-
-  if (type === "Bartop") {
-    return list.filter(([, W]) => W <= 16);
-  }
-
-  if (type === "Island") {
-    return list.filter(([, W]) => W >= 28);
-  }
-
-  // Countertop: CSV-only (no extra filtering)
+  // Everything else: also CSV-only (no hard-coded 7/16/28 rules)
   return list;
 }
 
 function packWidthBucket(parts,cands,width){
-  const EPS=1e-6; const sizes=cands.filter(([SL,SW])=>SW+EPS>=width).sort((a,b)=>a[0]-b[0]);
+  const EPS=1e-6; 
+  const sizes=cands.filter(([SL,SW])=>SW+EPS>=width).sort((a,b)=>a[0]-b[0]);
   if(!sizes.length) return parts.map(p=>({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}));
-  const maxSL=Math.max(...sizes.map(([SL])=>SL)); const bins=[]; const list=parts.slice().sort((a,b)=>b.L-a.L);
+  const maxSL=Math.max(...sizes.map(([SL])=>SL)); 
+  const bins=[]; 
+  const list=parts.slice().sort((a,b)=>b.L-a.L);
   for(const p of list){
-    if(p.L-EPS>maxSL){ bins.push({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}); continue; }
+    if(p.L-EPS>maxSL){ 
+      bins.push({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}); 
+      continue; 
+    }
     let placed=false;
-    for(const b of bins){ if(!b.nofit && b.remaining+EPS>=p.L){ b.cuts.push({part:p,cutL:p.L}); b.remaining-=p.L; placed=true; break; } }
-    if(!placed){ const best=sizes.find(([SL])=>SL+EPS>=p.L) || sizes[sizes.length-1];
-      bins.push({SL:best[0],SW:best[1],remaining:best[0]-p.L,cuts:[{part:p,cutL:p.L}]}); }
+    for(const b of bins){ 
+      if(!b.nofit && b.remaining+EPS>=p.L){ 
+        b.cuts.push({part:p,cutL:p.L}); 
+        b.remaining-=p.L; 
+        placed=true; 
+        break; 
+      } 
+    }
+    if(!placed){ 
+      const best=sizes.find(([SL])=>SL+EPS>=p.L) || sizes[sizes.length-1];
+      bins.push({SL:best[0],SW:best[1],remaining:best[0]-p.L,cuts:[{part:p,cutL:p.L}]}); 
+    }
   }
   return bins;
 }
+
 function addSuggestRow(idx,group,typ,cut,source,prefab,left){
   const tr=document.createElement("tr");
   tr.innerHTML=`<td>${idx}</td><td>${group}</td><td>${typ}</td><td>${cut}</td><td>${source}</td><td>${prefab}</td><td>${left}</td>`;
   suggestBody.appendChild(tr);
 }
+
 function suggestPieces(){
-  suggestBody.innerHTML=""; prefabSummary.innerHTML="";
-  const parts=[]; Array.from(tableBody.querySelectorAll("tr")).forEach((row,i)=>{
+  suggestBody.innerHTML=""; 
+  prefabSummary.innerHTML="";
+
+  const parts=[]; 
+  Array.from(tableBody.querySelectorAll("tr")).forEach((row,i)=>{
     const L=parseFloat(row.querySelector(".length")?.value)||0;
     const W=parseFloat(row.querySelector(".width")?.value)||0;
     const mat=row.querySelector(".material")?.value||"Quartz";
@@ -333,16 +356,33 @@ function suggestPieces(){
     if(L>0 && W>0) parts.push({idx:i+1, group, L:Math.max(L,W), W:Math.min(L,W), mat, typ, stone});
   });
   if(!parts.length) return;
+
+  // Group by (material|type) then by width bucket
   const pools=new Map();
-  parts.forEach(p=>{ const k=`${p.mat}|${p.typ}`; if(!pools.has(k)) pools.set(k,new Map());
-    const wk=bucketKey(p.W); const byW=pools.get(k); (byW.get(wk)||byW.set(wk,[]).get(wk)).push(p); });
+  parts.forEach(p=>{
+    const k=`${p.mat}|${p.typ}`; 
+    if(!pools.has(k)) pools.set(k,new Map());
+    const wk=bucketKey(p.W); 
+    const byW=pools.get(k); 
+    (byW.get(wk)||byW.set(wk,[]).get(wk)).push(p);
+  });
+
   const pieceCounts={};
-  const addCount=(mat,SL,SW)=>{ const K=`${SL}×${SW}`; (pieceCounts[mat] ||= {}); pieceCounts[mat][K]=(pieceCounts[mat][K]||0)+1; };
+  const addCount=(mat,SL,SW)=>{
+    const K=`${SL}×${SW}`; 
+    (pieceCounts[mat] ||= {}); 
+    pieceCounts[mat][K]=(pieceCounts[mat][K]||0)+1; 
+  };
+
   pools.forEach((byW,key)=>{
     const [mat,typ]=key.split("|");
     byW.forEach(arr=>{
-      const width=arr[0].W; const cands = getCandidates(mat, typ, arr[0].stone);
-      if(!cands.length){ arr.forEach(p=>addSuggestRow(p.idx,p.group,typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,"No fit","-","-")); return; }
+      const width=arr[0].W; 
+      const cands = getCandidates(mat, typ, arr[0].stone);
+      if(!cands.length){ 
+        arr.forEach(p=>addSuggestRow(p.idx,p.group,typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,"No fit","-","-")); 
+        return; 
+      }
       const bins=packWidthBucket(arr,cands,width);
       bins.forEach((b,bi)=>{
         if(!b.nofit && b.SL && b.SW) addCount(mat,b.SL,b.SW);
@@ -357,6 +397,7 @@ function suggestPieces(){
       });
     });
   });
+
   const rowsHtml = Object.keys(pieceCounts).length
     ? Object.entries(pieceCounts).map(([mat,sizes])=>Object.entries(sizes)
         .sort((a,b)=>a[0].localeCompare(b[0]))
@@ -368,9 +409,10 @@ function suggestPieces(){
     <tbody>${rowsHtml}</tbody></table>`;
 }
 
-/* Plywood planner */
+/* ===================== PLYWOOD PLANNER ===================== */
 function computePlywoodPlan(){
-  const rows=Array.from(tableBody.querySelectorAll("tr")); const pcs=[];
+  const rows=Array.from(tableBody.querySelectorAll("tr")); 
+  const pcs=[];
   rows.forEach(r=>{
     const typ=(r.querySelector(".ptype")?.value||"").trim();
     if(!["Countertop","Island","Bartop"].includes(typ)) return;
@@ -381,29 +423,42 @@ function computePlywoodPlan(){
     if(L>0 && W>0) pcs.push({L,W,area:L*W});
   });
   pcs.sort((a,b)=>b.area-a.area);
-  const sheets=[]; const newSheet=()=>({leftovers:[{L:PLY_SHEET.L,W:PLY_SHEET.W}],cuts:[]});
+  const sheets=[]; 
+  const newSheet=()=>({leftovers:[{L:PLY_SHEET.L,W:PLY_SHEET.W}],cuts:[]});
   pcs.forEach(p=>{
     let placed=false;
     for(const sh of sheets){
       for(let i=0;i<sh.leftovers.length;i++){
-        const r=sh.leftovers[i]; const fit1=p.L<=r.L && p.W<=r.W; const fit2=p.L<=r.W && p.W<=r.L;
+        const r=sh.leftovers[i]; 
+        const fit1=p.L<=r.L && p.W<=r.W; 
+        const fit2=p.L<=r.W && p.W<=r.L;
         if(!fit1 && !fit2) continue;
-        const RL=fit1?r.L:r.W; const RW=fit1?r.W:r.L;
-        const rem1={L:RL-p.L,W:p.W}; const rem2={L:RL,W:RW-p.W};
-        sh.leftovers.splice(i,1); [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
-        sh.cuts.push({L:p.L,W:p.W}); placed=true; break;
+        const RL=fit1?r.L:r.W; 
+        const RW=fit1?r.W:r.L;
+        const rem1={L:RL-p.L,W:p.W}; 
+        const rem2={L:RL,W:RW-p.W};
+        sh.leftovers.splice(i,1); 
+        [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
+        sh.cuts.push({L:p.L,W:p.W}); 
+        placed=true; 
+        break;
       }
       if(placed) break;
     }
     if(!placed){
-      const sh=newSheet(); const r=sh.leftovers[0];
-      const rem1={L:r.L-p.L,W:p.W}; const rem2={L:r.L,W:r.W-p.W};
-      sh.leftovers=[]; [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
-      sh.cuts.push({L:p.L,W:p.W}); sheets.push(sh);
+      const sh=newSheet(); 
+      const r=sh.leftovers[0];
+      const rem1={L:r.L-p.L,W:p.W}; 
+      const rem2={L:r.L,W:r.W-p.W};
+      sh.leftovers=[]; 
+      [rem1,rem2].forEach(x=>{ if(x.L>1 && x.W>1) sh.leftovers.push(x); });
+      sh.cuts.push({L:p.L,W:p.W}); 
+      sheets.push(sh);
     }
   });
   return { sheets, cost: sheets.length * PLY_SHEET.COST };
 }
+
 function suggestPlywood(){
   const { sheets, cost } = computePlywoodPlan();
   const plyBody=document.getElementById("plyBody");
@@ -412,14 +467,19 @@ function suggestPlywood(){
   sheets.forEach((sh,idx)=>{
     const cuts=sh.cuts.map(c=>`${c.L.toFixed(2)}×${c.W.toFixed(2)}`).join(", ");
     const left=sh.leftovers.map(l=>`${l.L.toFixed(2)}×${l.W.toFixed(2)}`).join(", ");
-    const tr=document.createElement("tr"); tr.innerHTML=`<td>${idx+1}</td><td>${cuts}</td><td>${left}</td>`; plyBody.appendChild(tr);
+    const tr=document.createElement("tr"); 
+    tr.innerHTML=`<td>${idx+1}</td><td>${cuts}</td><td>${left}</td>`;
+    plyBody.appendChild(tr);
   });
   currentPlywoodCost = cost;
   if(plySummary) plySummary.textContent = `Sheets used: ${sheets.length} × $${PLY_SHEET.COST} = $${currentPlywoodCost.toFixed(2)} (plywood: L–3", W–2")`;
   calculate();
 }
 
-/* Boot */
+/* ===================== BOOT ===================== */
+let BY = {};                 // Material -> Stone -> Set("LxW")
+let STRICT_INDEX = null;     // { map, normIndex }
+
 document.addEventListener("DOMContentLoaded", async ()=>{
   ensureRows(30);
 
@@ -428,20 +488,25 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     input.addEventListener("input", ()=>{ clamp(); calculate(); });
     input.addEventListener("blur", clamp);
   });
-  const fee=document.getElementById("oversizeFeeInput"); if(fee) fee.addEventListener("input", calculate);
+  const fee=document.getElementById("oversizeFeeInput"); 
+  if(fee) fee.addEventListener("input", calculate);
 
+  // Load CSVs -> build strict map
   const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
   try{
-    for(const [mat,path] of Object.entries(CSV_FILES)){ store[mat]=await loadMaterialCSV(path); }
-const STRICT = buildStrictSizeMap(store);
-BY = STRICT.map;
-window.STRICT_INDEX = STRICT; // optional
-    // keep BY for the rest of your code
-window.STRICT_INDEX = STRICT;  // optional: if you want to use getAllowedSizes elsewhere
-document.getElementById("stoneHint").textContent = "CSV data loaded. Choose a material, then stone.";
+    for(const [mat,path] of Object.entries(CSV_FILES)){
+      store[mat] = await loadMaterialCSV(path);
+    }
+    const STRICT = buildStrictSizeMap(store);
+    BY = STRICT.map;
+    STRICT_INDEX = STRICT;
+    const hint = document.getElementById("stoneHint");
+    if (hint) hint.textContent = "CSV data loaded. Choose a material, then stone.";
   }catch(e){
-    console.warn("CSV load failed", e); BY = { Quartz:{}, Granite:{}, Quartzite:{}, Marble:{} };
-    document.getElementById("stoneHint").textContent = "Could not load CSVs. Check filenames/paths.";
+    console.warn("CSV load failed", e);
+    BY = { Quartz:{}, Granite:{}, Quartzite:{}, Marble:{} };
+    const hint = document.getElementById("stoneHint");
+    if (hint) hint.textContent = "Could not load CSVs. Check filenames/paths.";
   }
 
   setupGlobalStoneSelector();
