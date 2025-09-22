@@ -1,0 +1,18 @@
+body { font-family: Arial, sans-serif; padding:20px; background:#f4f4f4; }
+h1 { text-align:center; }
+section.uploader, section.controls { background:#fff; padding:12px; margin:10px 0; border-radius:10px; display:grid; gap:10px; }
+button { background:#2563eb; color:#fff; border:0; border-radius:8px; padding:10px; cursor:pointer; }
+button:hover { background:#1d4ed8; }
+#previewImg { max-height:240px; display:none; border:1px solid #ddd; border-radius:8px; }
+table { width:100%; border-collapse:collapse; margin-top:10px; background:#fff; }
+th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+#sink-options { background:#f5f7ff; border:1px solid #dbe3ff; padding:12px; border-radius:12px; margin:14px 0; }
+#sink-options .sink-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+#stone-selectors { margin: 14px 0; padding: 12px 18px; border-radius: 12px; border: 1px solid #dbe3ff; background: #f5f7ff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+#stone-selectors label { display:block; font-weight:600; margin:8px 0 6px; }
+#stone-selectors select { width:100%; padding:8px 10px; border-radius:8px; border:1px solid #ccc; }
+#stone-selectors .section-title { font-weight:700; margin:4px 0 12px; color: #1f2a5a; }
+.totals-card { max-width:420px; margin-top:20px; background:#fff; border:1px solid #ddd; padding:12px; float:right; }
+.totals-row { display:flex; justify-content:space-between; padding:4px 0; }
+.totals-row.grand { font-weight:bold; font-size:1.1em; }
+.muted { color:#777; font-size:0.9em; }
