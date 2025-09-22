@@ -2,7 +2,7 @@
 const PREFAB = {
   Granite: {
     Countertop: [[26,96],[26,108],[26,114]],
-    Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]],
+    Island: [[28,108],[32,108],[36,108],[39,108],[42,108],[52,108]], 
     Bartop: [[14,108],[16,108]],
     Backsplash: [[4,108]],
     FullBacksplash: [] // cut from Countertop/Island/Bartop only
