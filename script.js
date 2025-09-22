@@ -210,7 +210,7 @@ function suggestPieces(){
     const L=parseFloat(row.querySelector(".length")?.value)||0;
     const W=parseFloat(row.querySelector(".width")?.value)||0;
     const mat=row.querySelector(".material")?.value||"Quartz";
-    const typ=row.querySelector(".ptype")?.value||"Countertop";
+    const typ=row.querySelector(".ptype")?.value||"";
     const group=(row.querySelector(".group")?.value||"").trim();
     const stone=(document.getElementById("stoneSelect")?.value||"").trim();
     if(L>0 && W>0) parts.push({idx:i+1, group, L:Math.max(L,W), W:Math.min(L,W), mat, typ, stone});
