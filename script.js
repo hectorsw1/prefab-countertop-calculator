@@ -194,7 +194,7 @@ function packWidthBucket(parts,cands,width){
     if(p.L-EPS>maxSL){ bins.push({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}); continue; }
     let placed=false;
     for(const b of bins){ if(!b.nofit && b.remaining+EPS>=p.L){ b.cuts.push({part:p,cutL:p.L}); b.remaining-=p.L; placed=true; break; } }
-    if(!placed){ const best=sizes.find(([SL])=>SL+EPS>=p.L) || sizes[sizes.length-2];
+    if(!placed){ const best=sizes.find(([SL])=>SL+EPS>=p.L) || sizes[sizes.length-1];
       bins.push({SL:best[0],SW:best[1],remaining:best[0]-p.L,cuts:[{part:p,cutL:p.L}]}); }
   }
   return bins;
