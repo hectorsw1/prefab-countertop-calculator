@@ -5,7 +5,7 @@ const CSV_FILES = {
   Granite: "/csv/Granite_tidy.csv",
   Quartzite: "/csv/Quartzite_tidy.csv",
   Marble: "/csv/Marble_tidy.csv",
-};
+}; 
 
 /* ===================== STRICT SIZE HELPERS ===================== */
 function norm(s){
