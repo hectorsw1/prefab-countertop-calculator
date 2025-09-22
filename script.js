@@ -300,7 +300,7 @@ function suggestPieces(){
   pools.forEach((byW,key)=>{
     const [mat,typ]=key.split("|");
     byW.forEach(arr=>{
-      const width=arr[0].W; const cands=(mat,typ,arr[0].stone);
+      const width=arr[0].W; const cands = getCandidates(mat, typ, arr[0].stone);
       if(!cands.length){ arr.forEach(p=>addSuggestRow(p.idx,p.group,typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,"No fit","-","-")); return; }
       const bins=packWidthBucket(arr,cands,width);
       bins.forEach((b,bi)=>{
