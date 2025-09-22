@@ -243,21 +243,27 @@ function autoFillRows(parts){
 }
 
 /* Prefab planning (CSV-aware simplified) */
-const WIDTH_BUCKET_STEP=0.125;
-function bucketKey(w){ return (Math.round(w/WIDTH_BUCKET_STEP)*WIDTH_BUCKET_STEP).toFixed(3); }
-function parseSizeTuple(sz){ const [L,W]=String(sz).toLowerCase().split('x').map(Number); return (isFinite(L)&&isFinite(W))?[Math.max(L,W),Math.min(L,W)]:null; }
 function getCandidates(material, type, stone){
-  // Optional: keep hard-coded fallback for these types
-  if (type === "Bartop")      return [[108,14],[108,16]];
-  if (type === "Countertop")  return [[96,26],[108,26],[114,26],[120,26]];
-  if (type === "Island")      return [[108,28],[108,32],[108,36],[108,39],[108,42],[108,52]];
-  if (type === "Backsplash")  return [[108,4],[108,7]];
-
+  // Strict: only sizes from CSV for this exact stone in this material
   const by = BY[material] || {};
-  if (!stone || !by[stone]) {
-    // no match — return empty to prevent showing sizes from other stones
-    return [];
+  const set = (stone && by[stone]) ? by[stone] : null;
+  if (!set) return []; // no match => no candidates (forces you to fix the stone name/CSV)
+
+  // Convert "LxW" -> [L,W] with L >= W
+  const list = [...set].map(parseSizeTuple).filter(Boolean);
+
+  // Optional type-specific filters (still strict; only trimming from CSV pool)
+  if (type === "Backsplash" || type === "FullBacksplash") {
+    return list.filter(([_, W]) => W <= 7);   // keep only narrow pieces if that’s your rule
   }
+  if (type === "Bartop") {
+    return list.filter(([_, W]) => W <= 14);
+  }
+  if (type === "Island") {
+    return list.filter(([_, W]) => W >= 28);  // islands are wider
+  }
+  return list;
+}
 
   const list = [...by[stone]].map(parseSizeTuple).filter(Boolean);
 
@@ -307,7 +313,7 @@ function suggestPieces(){
   pools.forEach((byW,key)=>{
     const [mat,typ]=key.split("|");
     byW.forEach(arr=>{
-      const width=arr[0].W; const cands=getCandidates(mat,typ,arr[0].stone);
+      const width=arr[0].W; const cands=(mat,typ,arr[0].stone);
       if(!cands.length){ arr.forEach(p=>addSuggestRow(p.idx,p.group,typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,"No fit","-","-")); return; }
       const bins=packWidthBucket(arr,cands,width);
       bins.forEach((b,bi)=>{
