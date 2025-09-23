@@ -24,6 +24,15 @@ const CSV_FILES = {
     console.error('Unhandled rejection:', e.reason);
   });
 })();
+window.addEventListener('error', e=>{
+  const hint = document.getElementById('stoneHint');
+  if (hint && !hint.dataset.locked) hint.textContent = `JS error: ${e.message}`;
+});
+window.addEventListener('unhandledrejection', e=>{
+  const hint = document.getElementById('stoneHint');
+  const msg = e?.reason?.message || e?.reason || '(unknown)';
+  if (hint && !hint.dataset.locked) hint.textContent = `Promise error: ${msg}`;
+});
 
 (function addLoadingWatchdog(){
   const hint = document.getElementById('stoneHint');
@@ -53,8 +62,9 @@ function fetchWithTimeout(url, ms = 7000) {
 }
 
 async function loadMaterialCSVFlexible(filename){
+  const PREFIXES = ["/csv/", "./csv/", "csv/"];
   let lastErr;
-  for (const prefix of CSV_CANDIDATE_PREFIXES){
+  for (const prefix of PREFIXES){
     const path = `${prefix}${filename}`;
     try {
       const res = await fetchWithTimeout(path, 7000);
@@ -574,47 +584,62 @@ let BY = {};                 // Material -> Stone -> Set("LxW")
 let STRICT_INDEX = null;     // { map, normIndex }
 
 document.addEventListener("DOMContentLoaded", async ()=>{
+  // Guard: if table body exists, make rows
+  if (document.getElementById("tableBody")) ensureRows(30);
+
+  // Wire listeners (guard each element so a missing ID can’t crash boot)
+  document.querySelectorAll('#sink-options .sink-qty')?.forEach(input=>{
+    const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
+    input.addEventListener("input", ()=>{ clamp(); calculate(); });
+    input.addEventListener("blur", clamp);
+  });
+  document.getElementById("oversizeFeeInput")?.addEventListener("input", calculate);
+  document.getElementById("btnPlywood")?.addEventListener("click", suggestPlywood);
+  document.getElementById("recalcBtn")?.addEventListener("click", calculate);
+
+  const hint = document.getElementById("stoneHint");
+  if (hint) hint.textContent = "Loading CSV data…";
+
+  const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
+
   try {
-    // Guards: don’t explode if some elements are missing
-    if (exists('tableBody')) ensureRows(30);
-
-    // Wire listeners only if containers exist
-    if (exists('sink-options')) {
-      $all('#sink-options .sink-qty').forEach(input=>{
-        const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
-        input.addEventListener("input", ()=>{ clamp(); calculate(); });
-        input.addEventListener("blur", clamp);
-      });
+    for (const [mat, filename] of Object.entries(CSV_FILES)) {
+      store[mat] = await loadMaterialCSVFlexible(filename);
     }
-    $('#oversizeFeeInput')?.addEventListener("input", calculate);
-    $('#btnPlywood')?.addEventListener("click", suggestPlywood);
-    $('#recalcBtn')?.addEventListener("click", calculate);
+    const STRICT = buildStrictSizeMap(store);
+    BY = STRICT.map;
+    STRICT_INDEX = STRICT;
+    if (hint) { hint.textContent = "CSV data loaded. Choose a material, then stone."; hint.dataset.locked = "1"; }
+  } catch (e) {
+    console.warn("CSV load failed", e);
+    if (hint) { hint.textContent = `CSV load failed: ${e.message || e}`; hint.dataset.locked = "1"; }
+    // Temporary fallback so dropdowns still work
+    BY = {
+      Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
+      Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
+      Quartzite:{ "Demo Quartzite C": new Set(["120x26"]) },
+      Marble:   { "Demo Marble D": new Set(["98x26"]) }
+    };
+  }
 
-    const hint = $('#stoneHint');
-    if (hint && !hint.textContent) hint.textContent = 'Loading CSV data…';
+  setupGlobalStoneSelector?.();
+  calculate?.();
 
-    // Load CSVs (don’t await any debug probes first)
-    const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
-    try{
-      for (const [mat, filename] of Object.entries(CSV_FILES)) {
-        store[mat] = await loadMaterialCSVFlexible(filename);
+  // Optional: background probe, does not block UI
+  (async ()=>{
+    for (const [mat, filename] of Object.entries(CSV_FILES)) {
+      for (const prefix of ["/csv/", "./csv/", "csv/"]) {
+        const path = `${prefix}${filename}`;
+        try {
+          const res = await fetchWithTimeout(path, 7000);
+          console.log(`[CSV DEBUG] ${mat}: try ${path} → ${res.status}`);
+          if (res.ok) break;
+        } catch {}
       }
-      const STRICT = buildStrictSizeMap(store);
-      BY = STRICT.map;
-      STRICT_INDEX = STRICT;
-
-      if (hint) { hint.textContent = "CSV data loaded. Choose a material, then stone."; hint.dataset.locked = "1"; }
-    }catch(e){
-      console.warn("CSV load failed", e);
-      if (hint) { hint.textContent = `CSV load failed: ${e.message || e}`; hint.dataset.locked = "1"; }
-      // TEMP: fallback so UI still works
-      BY = {
-        Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
-        Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
-        Quartzite:{ "Demo Quartzite C": new Set(["120x26"]) },
-        Marble:   { "Demo Marble D": new Set(["98x26"]) }
-      };
     }
+  })();
+});
+
 
     // Now wire the selectors and do the first calc
     setupGlobalStoneSelector?.();
