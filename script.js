@@ -673,3 +673,37 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     console.error('Fatal init error:', fatal);
   }
 });
+/* ===== EMERGENCY PATCH: never block UI on CSV ===== */
+(function emergencyBootGuard(){
+  const hint = document.getElementById('stoneHint');
+  // 1) Ensure input rows exist so you can type dimensions immediately
+  try {
+    if (document.getElementById('tableBody') && !document.getElementById('tableBody').children.length) {
+      ensureRows(30);
+    }
+  } catch (e) {
+    console.warn('ensureRows failed:', e);
+  }
+
+  // 2) Always wire critical listeners so buttons work
+  try {
+    document.querySelectorAll('#sink-options .sink-qty').forEach(input=>{
+      const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
+      input.addEventListener("input", ()=>{ clamp(); calculate(); });
+      input.addEventListener("blur", clamp);
+    });
+    document.getElementById("oversizeFeeInput")?.addEventListener("input", calculate);
+    document.getElementById("btnPlywood")?.addEventListener("click", suggestPlywood);
+    document.getElementById("recalcBtn")?.addEventListener("click", calculate);
+  } catch (e) { console.warn('listener wiring failed:', e); }
+
+  // 3) If CSVs haven’t populated stones in 3 seconds, inject a demo map so the dropdown works
+  setTimeout(()=>{
+    const hasQuartz = BY && BY.Quartz && Object.keys(BY.Quartz).length > 0;
+    if (!hasQuartz) {
+      console.warn('[EMERGENCY] CSVs not available → injecting demo stones so UI is usable.');
+      window.BY = {
+        Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
+        Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
+        Quartzite:{ "Demo Qu
+
