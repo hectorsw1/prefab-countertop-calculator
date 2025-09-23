@@ -3,145 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Prefab Countertop Calculator + OCR + Prefab & Plywood Suggestions</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Prefab Countertop Calculator</title>
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <h1>Prefab Countertop Calculator</h1>
+  <header class="topbar">
+    <h1>Prefab Countertop Calculator</h1>
+    <div id="csv-status" class="badge">Loading CSV data…</div>
+  </header>
 
-  <!-- =================== Material & Stone (Color) =================== -->
-  <section id="stone-selectors" class="card">
-    <div class="row">
-      <label for="materialSelect">Material</label>
-      <select id="materialSelect" aria-label="Material">
-        <option value="Quartz">Quartz</option>
-        <option value="Granite">Granite</option>
-        <option value="Quartzite">Quartzite</option>
-        <option value="Marble">Marble</option>
-      </select>
-    </div>
-
-    <div class="row">
-      <label for="stoneSelect">Stone (color)</label>
-      <select id="stoneSelect" disabled aria-label="Stone (color)">
-        <option value="" selected>Select stone…</option>
-      </select>
-    </div>
-
-    <small id="stoneHint" class="muted">Loading CSV data…</small>
-  </section>
-
-  <!-- =================== Optional fees / sinks =================== -->
-  <section class="card">
-    <div class="row">
-      <label for="oversizeFeeInput">Oversize/Delivery Fee ($)</label>
-      <input type="number" id="oversizeFeeInput" min="0" step="1" value="0" />
-    </div>
-
-    <div id="sink-options" class="sink-grid">
-      <!-- Simple split by kitchen/bath to keep your existing JS hooks -->
-      <div class="sink-item" data-price="180">
-        <div class="sink-title">Kitchen sink install ($180 each)</div>
-        <input id="qty-k" class="sink-qty" type="number" min="0" max="20" value="0" />
+  <main class="container">
+    <section class="controls">
+      <div class="row">
+        <label for="material">Material</label>
+        <select id="material">
+          <option value="">Select material…</option>
+          <option value="Quartz">Quartz</option>
+          <option value="Granite">Granite</option>
+          <option value="Quartzite">Quartzite</option>
+          <option value="Marble">Marble</option>
+        </select>
       </div>
-      <div class="sink-item" data-price="80">
-        <div class="sink-title">Bathroom/Bar sink install ($80 each)</div>
-        <input id="qty-b" class="sink-qty" type="number" min="0" max="20" value="0" />
+
+      <div class="row">
+        <label for="stone">Stone (Color)</label>
+        <select id="stone" disabled>
+          <option value="">Select stone…</option>
+        </select>
       </div>
-    </div>
-  </section>
 
-  <!-- =================== Input Table =================== -->
-  <section id="calculator" class="card">
-    <div class="scroll-x">
-      <table id="inputTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Group</th>
-            <th>Type</th>
-            <th>Length (in)</th>
-            <th>Width (in)</th>
-            <th>Material</th>
-            <th>Sink</th>
-            <th>Refab (LF)</th>
-            <th>SqFt</th>
-            <th>Labor</th>
-            <th>Extras</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"><!-- rows via JS --></tbody>
-        <!-- OPTIONAL: manual recalc trigger -->
-<button id="recalcBtn" type="button" style="margin:8px 0;">Recalculate</button>
-
-<!-- OPTIONAL plywood button (if not already in your HTML) -->
-<button id="btnPlywood" type="button" style="margin:8px 0;">Recompute Plywood</button>
-      </table>
-    </div>
-  </section>
-
-  <!-- =================== OCR Upload (optional) =================== -->
-  <section class="card">
-    <div class="row">
-      <label for="imageInput">Sketch image (for OCR)</label>
-      <input id="imageInput" type="file" accept="image/*" />
-      <button id="runOcrBtn" type="button">Run OCR & Auto-Fill</button>
-    </div>
-    <div id="ocrStatus" class="muted">No image loaded.</div>
-    <img id="previewImg" alt="preview" style="display:none; max-width:400px; margin-top:8px;" />
-  </section>
-
-  <!-- =================== Suggestions (Prefab & Plywood) =================== -->
-  <section class="two-col">
-    <div class="card">
-      <h2>Suggested Prefab Cuts</h2>
-      <div class="scroll-x">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th><th>Group</th><th>Type</th><th>Cut (L×W)</th><th>Source</th><th>Prefab piece</th><th>Leftover</th>
-            </tr>
-          </thead>
-          <tbody id="suggestBody"><!-- via JS --></tbody>
-        </table>
+      <div class="row">
+        <label for="size">Available Size</label>
+        <select id="size" disabled>
+          <option value="">Select size…</option>
+        </select>
       </div>
-      <div id="prefabSummary" class="mt8"></div>
-    </div>
 
-    <div class="card">
-      <h2>Plywood Plan</h2>
-      <button type="button" id="btnPlywood">Recompute Plywood</button>
-      <div class="scroll-x">
-        <table>
-          <thead>
-            <tr><th>Sheet #</th><th>Cuts</th><th>Leftovers</th></tr>
-          </thead>
-          <tbody id="plyBody"><!-- via JS --></tbody>
-        </table>
+      <hr/>
+
+      <div class="row">
+        <label for="length">Piece Length (in)</label>
+        <input id="length" type="number" min="1" step="1" placeholder="e.g. 96"/>
       </div>
-      <div id="plySummary" class="mt8"></div>
-    </div>
-  </section>
+      <div class="row">
+        <label for="width">Piece Width (in)</label>
+        <input id="width" type="number" min="1" step="1" placeholder="e.g. 26"/>
+      </div>
 
-  <!-- =================== Totals =================== -->
-  <section class="card">
-    <div class="totals-grid">
-      <div><strong>Total SqFt:</strong> <span id="totalSqft">0.00</span></div>
-      <div><strong>Total Labor:</strong> $<span id="totalLabor">0.00</span></div>
-      <div><strong>Total Extras:</strong> $<span id="totalExtras">0.00</span></div>
-      <div><strong>Kitchen sink install:</strong> <span id="kitchenSinkInstall">$0.00</span></div>
-      <div><strong>Bathroom/Bar sink install:</strong> <span id="bathSinkInstall">$0.00</span></div>
-      <div><strong>Installation Cost (labor):</strong> <span id="installationCost">$0.00</span></div>
-      <div><strong>Fabrication Cost (material):</strong> <span id="fabricationCost">$0.00</span></div>
-      <div><strong>Plywood Cost:</strong> <span id="plywoodCost">$0.00</span></div>
-      <div><strong>Grand Total:</strong> <span id="grandTotal">$0.00</span></div>
-    </div>
-  </section>
+      <div class="buttons">
+        <button id="btn-calc">Calculate Countertops</button>
+        <button id="btn-plywood">Calculate Plywood</button>
+      </div>
+    </section>
 
-  <!-- =================== Scripts =================== -->
-  <!-- Tesseract (OCR) – optional, safe to keep even if unused -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
-  <script src="script.js"></script>
+    <section class="results">
+      <h2>Results</h2>
+      <div id="result-area" class="card">
+        <p>Enter dimensions and click a button to see results.</p>
+      </div>
+    </section>
+
+    <section class="debug">
+      <details>
+        <summary>Debug Log</summary>
+        <pre id="debug-log"></pre>
+      </details>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
