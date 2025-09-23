@@ -10,6 +10,37 @@ const CSV_FILES = {
   Quartzite:"Quartzite_tidy.csv",
   Marble:   "Marble_tidy.csv",
 };
+/* ================= HOTFIX: error surfacing + watchdog ================= */
+(function attachGlobalErrorSurface(){
+  window.addEventListener('error', (e)=>{
+    const hint = document.getElementById('stoneHint');
+    if (hint && !hint.dataset.locked) hint.textContent = `JS error: ${e.message}`;
+    console.error('Global error:', e.error || e.message);
+  });
+  window.addEventListener('unhandledrejection', (e)=>{
+    const hint = document.getElementById('stoneHint');
+    const msg = e?.reason?.message || e?.reason || '(unknown)';
+    if (hint && !hint.dataset.locked) hint.textContent = `Promise error: ${msg}`;
+    console.error('Unhandled rejection:', e.reason);
+  });
+})();
+
+(function addLoadingWatchdog(){
+  const hint = document.getElementById('stoneHint');
+  if (!hint) return;
+  // If nothing updates this within 8s, force a visible message.
+  const t = setTimeout(()=>{
+    if (!hint.dataset.locked && /loading/i.test(hint.textContent || '')) {
+      hint.textContent = 'CSV load still pending. Likely a path or filename issue. Open /csv/Quartz_tidy.csv directly to verify.';
+    }
+  }, 8000);
+  // clearTimeout(t) will happen automatically when page navigates
+})();
+
+/* Small guard helpers so missing nodes don’t crash boot */
+function $(sel){ return document.querySelector(sel); }
+function $all(sel){ return Array.from(document.querySelectorAll(sel)); }
+function exists(id){ const el = document.getElementById(id); if(!el){ console.warn(`#${id} not found`); } return !!el; }
 
 const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
 
@@ -28,10 +59,7 @@ async function loadMaterialCSVFlexible(filename){
     try {
       const res = await fetchWithTimeout(path, 7000);
       console.log(`[CSV TRY] ${path} → ${res.status}`);
-      if (!res.ok) {
-        lastErr = new Error(`Failed ${path} (${res.status})`);
-        continue;
-      }
+      if (!res.ok) { lastErr = new Error(`Failed ${path} (${res.status})`); continue; }
       const text = await res.text();
       const rows = parseCSV(text);
       if (rows.length > 0) return rows;
