@@ -1,709 +1,117 @@
-/* ========= CSV FILENAMES + FLEXIBLE LOADER ========= */
-/* Put CSVs either in:
-   - Next/Vite:   /public/csv/*.csv  (served at /csv/...)
-   - Static site: /csv/*.csv next to index.html
-*/
-/* ========= CSV SETTINGS ========= */
-const CSV_FILES = {
-  Quartz:   "Quartz_tidy.csv",
-  Granite:  "Granite_tidy.csv",
-  Quartzite:"Quartzite_tidy.csv",
-  Marble:   "Marble_tidy.csv",
-};
-/* ================= HOTFIX: error surfacing + watchdog ================= */
-(function attachGlobalErrorSurface(){
-  window.addEventListener('error', (e)=>{
-    const hint = document.getElementById('stoneHint');
-    if (hint && !hint.dataset.locked) hint.textContent = `JS error: ${e.message}`;
-    console.error('Global error:', e.error || e.message);
-  });
-  window.addEventListener('unhandledrejection', (e)=>{
-    const hint = document.getElementById('stoneHint');
-    const msg = e?.reason?.message || e?.reason || '(unknown)';
-    if (hint && !hint.dataset.locked) hint.textContent = `Promise error: ${msg}`;
-    console.error('Unhandled rejection:', e.reason);
-  });
-})();
-window.addEventListener('error', e=>{
-  const hint = document.getElementById('stoneHint');
-  if (hint && !hint.dataset.locked) hint.textContent = `JS error: ${e.message}`;
-});
-window.addEventListener('unhandledrejection', e=>{
-  const hint = document.getElementById('stoneHint');
-  const msg = e?.reason?.message || e?.reason || '(unknown)';
-  if (hint && !hint.dataset.locked) hint.textContent = `Promise error: ${msg}`;
-});
-
-(function addLoadingWatchdog(){
-  const hint = document.getElementById('stoneHint');
-  if (!hint) return;
-  // If nothing updates this within 8s, force a visible message.
-  const t = setTimeout(()=>{
-    if (!hint.dataset.locked && /loading/i.test(hint.textContent || '')) {
-      hint.textContent = 'CSV load still pending. Likely a path or filename issue. Open /csv/Quartz_tidy.csv directly to verify.';
-    }
-  }, 8000);
-  // clearTimeout(t) will happen automatically when page navigates
-})();
-
-/* Small guard helpers so missing nodes don’t crash boot */
-function $(sel){ return document.querySelector(sel); }
-function $all(sel){ return Array.from(document.querySelectorAll(sel)); }
-function exists(id){ const el = document.getElementById(id); if(!el){ console.warn(`#${id} not found`); } return !!el; }
-
-const CSV_CANDIDATE_PREFIXES = ["/csv/", "./csv/", "csv/"];
-
-/* ========= FLEXIBLE LOADER WITH TIMEOUT ========= */
-function fetchWithTimeout(url, ms = 7000) {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  return fetch(url, { cache: "no-store", signal: c.signal })
-    .finally(() => clearTimeout(t));
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --card: #1e2230;
+  --text: #e7eaf0;
+  --muted: #9aa3b2;
+  --accent: #7aa2f7;
+  --ok: #41d1a7;
+  --warn: #ffcf5a;
+  --bad: #ff7a90;
+  --border: #2b3142;
 }
 
-async function loadMaterialCSVFlexible(filename){
-  const PREFIXES = ["/csv/", "./csv/", "csv/"];
-  let lastErr;
-  for (const prefix of PREFIXES){
-    const path = `${prefix}${filename}`;
-    try {
-      const res = await fetchWithTimeout(path, 7000);
-      console.log(`[CSV TRY] ${path} → ${res.status}`);
-      if (!res.ok) { lastErr = new Error(`Failed ${path} (${res.status})`); continue; }
-      const text = await res.text();
-      const rows = parseCSV(text);
-      if (rows.length > 0) return rows;
-      lastErr = new Error(`OK but empty rows: ${path}`);
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[CSV TRY] ${path} error →`, e.name === 'AbortError' ? 'Timeout' : e.message);
-    }
-  }
-  throw lastErr || new Error(`Could not load ${filename}`);
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
 }
 
-
-// ❌ delete / overwrite your old loadMaterialCSVFlexible here
-
-// ✅ replace with this:
-function fetchWithTimeout(url, ms = 7000) {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  return fetch(url, { cache: "no-store", signal: c.signal })
-    .finally(() => clearTimeout(t));
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
 }
 
-async function loadMaterialCSVFlexible(filename){
-  let lastErr;
-  for (const prefix of CSV_CANDIDATE_PREFIXES){
-    const path = `${prefix}${filename}`;
-    try {
-      const res = await fetchWithTimeout(path, 7000);
-      console.log(`[CSV TRY] ${path} → ${res.status}`);
-      if (!res.ok) {
-        lastErr = new Error(`Failed ${path} (${res.status})`);
-        continue;
-      }
-      const text = await res.text();
-      const rows = parseCSV(text);
-      if (rows.length > 0) return rows;
-      lastErr = new Error(`OK but empty rows: ${path}`);
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[CSV TRY] ${path} error →`, e.name === 'AbortError' ? 'Timeout' : e.message);
-    }
-  }
-  throw lastErr || new Error(`Could not load ${filename}`);
+.badge {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted);
 }
 
-/* ========= CONSTANTS ========= */
-const LABOR_RATE = 14;
-const REFAB_RATE = 30;
-const ISLAND_SURCHARGE_L = 120;
-const ISLAND_SURCHARGE_W = 43;
-const ISLAND_SURCHARGE_COST = 150;
-
-const PLY_SHEET = { L: 96, W: 48, COST: 70 };
-const PLY_OFF_L = 3, PLY_OFF_W = 2;
-
-const tableBody = document.getElementById("tableBody");
-const suggestBody = document.getElementById("suggestBody");
-const prefabSummary = document.getElementById("prefabSummary");
-
-/* ========= UTIL ========= */
-function norm(s){
-  return String(s||"")
-    .normalize("NFKC")
-    .replace(/\u00A0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-function parseSizeKey(sizeStr){
-  const [a,b] = String(sizeStr).toLowerCase().replace(/×/g,"x").split("x").map(Number);
-  if (!isFinite(a) || !isFinite(b)) return null;
-  const L = Math.max(a,b), W = Math.min(a,b);
-  return `${L}x${W}`;
+.container {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+  padding: 18px;
 }
 
-/* ========= STRICT MAP BUILDING =========
-   BY[Material][StoneDisplay] = Set("LxW")
-*/
-function buildStrictSizeMap(store){
-  const map = {};
-  const normIndex = {};
-  for (const mat of Object.keys(store)){
-    map[mat] = {};
-    normIndex[mat] = {};
-    for (const row of store[mat]){
-      const stoneRaw = (row.stone || "").trim();
-      const sizeRaw  = (row.size  || "").trim();
-      if (!stoneRaw || !sizeRaw) continue;
-      const key = parseSizeKey(sizeRaw);
-      if (!key) continue;
-      if (!map[mat][stoneRaw]) map[mat][stoneRaw] = new Set();
-      map[mat][stoneRaw].add(key);
-      normIndex[mat][norm(stoneRaw)] = stoneRaw;
-    }
-  }
-  return { map, normIndex };
+.controls, .results, .debug {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
 }
 
-/* ========= CSV PARSER (robust) ========= */
-function parseCSV(text){
-  if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
-
-  function splitCSVLine(line){
-    const out = [];
-    let cur = "", inQ = false;
-    for (let i=0;i<line.length;i++){
-      const ch = line[i];
-      if (ch === '"') { inQ = !inQ; continue; }
-      if (ch === ',' && !inQ) { out.push(cur.trim()); cur=""; continue; }
-      cur += ch;
-    }
-    out.push(cur.trim());
-    return out;
-  }
-
-  const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim().length);
-  if (!lines.length) return [];
-
-  const headers = splitCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
-
-  const stoneAliases = [
-    "stone","name","color","stone name","color name","material name","slab","slab name"
-  ];
-  const sizeAliases  = [
-    "size","sizes","dimension","dimensions","stock","available sizes","available size"
-  ];
-
-  const iStone = headers.findIndex(h => stoneAliases.includes(h) || /stone|color|name/.test(h));
-  const iSize  = headers.findIndex(h => sizeAliases.includes(h)  || /size|dimension|stock/.test(h));
-  const iLen   = headers.findIndex(h => ["length","len","l"].includes(h));
-  const iWidth = headers.findIndex(h => ["width","wid","w"].includes(h));
-
-  const out = [];
-  for (let i=1;i<lines.length;i++){
-    const cols = splitCSVLine(lines[i]);
-    let stone = iStone>=0 ? cols[iStone] : (cols[0] || "");
-    if (!stone) continue;
-
-    let size = null;
-    if (iSize >= 0 && cols[iSize]) {
-      size = String(cols[iSize])
-        .toLowerCase()
-        .replace(/×/g,"x")
-        .replace(/\s*x\s*/g,"x")
-        .split(/[;,]/)[0]
-        .trim();
-      const parts = size.split("x").map(Number);
-      if (parts.length === 2 && isFinite(parts[0]) && isFinite(parts[1])) {
-        const L = Math.max(parts[0], parts[1]);
-        const W = Math.min(parts[0], parts[1]);
-        size = `${L}x${W}`;
-      } else {
-        size = null;
-      }
-    } else if (iLen >= 0 && iWidth >= 0) {
-      const a = Number(cols[iLen]), b = Number(cols[iWidth]);
-      if (isFinite(a) && isFinite(b)) {
-        const L = Math.max(a,b), W = Math.min(a,b);
-        size = `${L}x${W}`;
-      }
-    }
-
-    if (stone && size) out.push({ stone: stone.trim(), size });
-  }
-  return out;
+.controls .row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
-/* ========= UI: Material -> Stone ========= */
-function setupGlobalStoneSelector(){
-  const matSel = document.getElementById("materialSelect");
-  const stoneSel = document.getElementById("stoneSelect");
-  const hint = document.getElementById("stoneHint");
-  if (!matSel || !stoneSel) return;
+label { color: var(--muted); font-size: 13px; }
 
-  function populate(mat){
-    const stonesObj = BY?.[mat] || {};
-    const stones = Object.keys(stonesObj).sort((a,b)=>a.localeCompare(b));
-
-    stoneSel.innerHTML = "";
-    const opt0 = new Option(stones.length ? "Select stone…" : "No stones found", "", true, true);
-    opt0.disabled = true;
-    stoneSel.append(opt0);
-
-    stones.forEach(s => stoneSel.append(new Option(s, s)));
-    stoneSel.disabled = stones.length === 0;
-
-    if (hint) {
-      if (!stones.length) {
-        const p = CSV_FILES?.[mat] || "(unknown)";
-        hint.textContent = `No stones for ${mat}. Check CSV path (${p}) and headers.`;
-      } else {
-        hint.textContent = `Loaded ${stones.length} stones for ${mat}.`;
-      }
-    }
-  }
-
-  matSel.addEventListener("change", ()=>{ populate(matSel.value); try{ suggestPieces(); }catch(_){} });
-  stoneSel.addEventListener("change", ()=>{ try{ suggestPieces(); } catch(e){ console.warn(e); } });
-
-  populate(matSel.value);
+select, input {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  outline: none;
 }
 
-/* ========= Rows ========= */
-function ensureRows(n){
-  const cur = tableBody.querySelectorAll("tr").length;
-  for (let i=cur+1;i<=n;i++){
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="rownum">${i}</td>
-      <td><input class="group" placeholder="A / 1" /></td>
-      <td>
-        <select class="ptype">
-          <option value="Countertop">Countertop</option>
-          <option value="Island">Island</option>
-          <option value="Bartop">Bartop</option>
-          <option value="Backsplash">Backsplash</option>
-          <option value="FullBacksplash">Full Backsplash</option>
-        </select>
-      </td>
-      <td><input type="number" class="length" step="0.01" /></td>
-      <td><input type="number" class="width" step="0.01" /></td>
-      <td>
-        <select class="material">
-          <option value="Quartz">Quartz</option>
-          <option value="Granite">Granite</option>
-          <option value="Quartzite">Quartzite</option>
-          <option value="Marble">Marble</option>
-        </select>
-      </td>
-      <td>
-        <select class="sink">
-          <option value="">None</option>
-          <option value="kitchen_sink">Kitchen Sink ($180)</option>
-          <option value="bathroom_sink">Bathroom Sink ($80)</option>
-          <option value="bar_sink">Bar Sink ($80)</option>
-        </select>
-      </td>
-      <td><input type="number" class="refab" step="0.01" placeholder="LF" /></td>
-      <td class="sqft"></td>
-      <td class="labor"></td>
-      <td class="extras"></td>
-      <td class="total"></td>`;
-    tableBody.appendChild(tr);
-  }
+select:disabled, input:disabled { opacity: 0.55; }
 
-  tableBody.addEventListener("input", (e)=>{
-    if (e.target.matches(".length, .width, .ptype, .material, .sink, .refab")) {
-      calculate();
-    }
-  });
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
 }
 
-/* ========= Sinks / Extras ========= */
-function getSinkAddonsSplit(){
-  const items=document.querySelectorAll('#sink-options .sink-item'); let kitchen=0,bathroom=0;
-  items.forEach(item=>{
-    const price=Number(item.dataset.price||0);
-    const qty=Math.min(20,Math.max(0,parseInt(item.querySelector('.sink-qty')?.value||'0',10)));
-    if(!qty) return;
-    const id=item.querySelector('.sink-qty')?.id||'';
-    const amount=price*qty;
-    if(id.startsWith('qty-b')) bathroom+=amount; else kitchen+=amount;
-  });
-  return {kitchen,bathroom,total:kitchen+bathroom};
-}
-let currentPlywoodCost=0;
-
-/* ========= Calculator ========= */
-function calculate(){
-  const rows=document.querySelectorAll("#inputTable tbody tr");
-  let sumSqft=0,sumLabor=0,sumExtras=0,sumTotal=0;
-  rows.forEach(row=>{
-    const L=parseFloat(row.querySelector(".length")?.value)||0;
-    const W=parseFloat(row.querySelector(".width")?.value)||0;
-    const ptype=row.querySelector(".ptype")?.value||"Countertop";
-    const sinkType=row.querySelector(".sink")?.value||"";
-    const refabLF=parseFloat(row.querySelector(".refab")?.value)||0;
-
-    const sqft=Math.ceil((L*W)/144);
-
-    let sinkCost=0; 
-    if(sinkType==="kitchen_sink") sinkCost=180; 
-    else if(sinkType==="bathroom_sink") sinkCost=80; 
-    else if(sinkType==="bar_sink") sinkCost=80;
-
-    const labor=sqft*LABOR_RATE; 
-    let extras=sinkCost + refabLF*REFAB_RATE;
-    if(ptype==="Island" && L>=ISLAND_SURCHARGE_L && W>=ISLAND_SURCHARGE_W) extras+=ISLAND_SURCHARGE_COST;
-
-    const total=labor+extras;
-
-    row.querySelector(".sqft").innerText=sqft.toFixed(2);
-    row.querySelector(".labor").innerText=labor.toFixed(2);
-    row.querySelector(".extras").innerText=extras.toFixed(2);
-    row.querySelector(".total").innerText=total.toFixed(2);
-
-    sumSqft+=sqft; sumLabor+=labor; sumExtras+=extras; sumTotal+=total;
-  });
-
-  const addons=getSinkAddonsSplit();
-  const fee=Number(document.getElementById('oversizeFeeInput')?.value||0)||0;
-
-  document.getElementById("totalSqft").innerText=sumSqft.toFixed(2);
-  document.getElementById("totalLabor").innerText=sumLabor.toFixed(2);
-  document.getElementById("totalExtras").innerText=sumExtras.toFixed(2);
-  document.getElementById("kitchenSinkInstall").textContent=`$${addons.kitchen.toFixed(2)}`;
-  document.getElementById("bathSinkInstall").textContent   =`$${addons.bathroom.toFixed(2)}`;
-  document.getElementById("installationCost").textContent  =`$${sumLabor.toFixed(2)}`;
-  document.getElementById("fabricationCost").textContent   =`$${(0).toFixed(2)}`;
-  document.getElementById("plywoodCost").textContent       =`$${currentPlywoodCost.toFixed(2)}`;
-
-  const grand = (sumTotal + addons.total + currentPlywoodCost + fee);
-  document.getElementById("grandTotal").textContent        =`$${grand.toFixed(2)}`;
+button {
+  background: var(--accent);
+  border: none;
+  color: #0a0c12;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
 }
 
-/* ========= OCR (unchanged) ========= */
-const imageInput=document.getElementById("imageInput");
-const runOcrBtn=document.getElementById("runOcrBtn");
-const ocrStatus=document.getElementById("ocrStatus");
-const previewImg=document.getElementById("previewImg");
-let uploadedImageURL=null;
+button#btn-plywood { background: var(--ok); }
 
-if(imageInput){
-  imageInput.addEventListener("change",e=>{
-    const f=e.target.files?.[0]; if(!f) return; 
-    uploadedImageURL=URL.createObjectURL(f);
-    if(previewImg){ previewImg.src=uploadedImageURL; previewImg.style.display="block"; }
-    if(ocrStatus) ocrStatus.textContent="Image loaded. Click 'Run OCR & Auto-Fill'.";
-  });
-}
-if(runOcrBtn){
-  runOcrBtn.addEventListener("click", async ()=>{
-    if(!uploadedImageURL){ if(ocrStatus) ocrStatus.textContent="Please choose a sketch image first."; return; }
-    if(ocrStatus) ocrStatus.textContent="Running OCR…";
-    try{
-      const { data } = await Tesseract.recognize(uploadedImageURL,'eng',{ tessedit_char_whitelist:'0123456789xX/.\" \'' });
-      const text=data.text||"";
-      if(ocrStatus) ocrStatus.innerHTML="OCR complete. <span class='badge'>Parsing…</span>";
-      const parts=parseDimensions(text); 
-      if(!parts.length){ if(ocrStatus) ocrStatus.textContent="No dimensions detected."; return; }
-      autoFillRows(parts); 
-      if(ocrStatus) ocrStatus.textContent=`Auto-filled ${parts.length} item(s).`;
-    }catch(e){ console.error(e); if(ocrStatus) ocrStatus.textContent="OCR failed."; }
-  });
-}
-function parseDimensions(text){
-  const cleaned=text.replace(/\s+/g,' ').replace(/[,;]/g,' ').trim(); 
-  const out=[];
-  const re=/(?:([A-Za-z0-9]+)[:\)\-]?\s*)?(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)\s*(?:in|")?\s*[xX×]\s*(\d+(?:\s+\d+\/\d+)?(?:\.\d+)?)/g;
-  let m; while((m=re.exec(cleaned))!==null){ out.push({ label:m[1]||"", length:toInches(m[2]), width:toInches(m[3]) }); }
-  return out;
-}
-function toInches(s){ s=String(s).trim(); if(s.includes(" ")){ const [w,f]=s.split(" "); return parseFloat(w)+fracToDec(f);} if(s.includes("/")) return fracToDec(s); return parseFloat(s); }
-function fracToDec(fr){ const [n,d]=fr.split("/").map(Number); if(!d) return 0; return n/d; }
-function autoFillRows(parts){
-  const rows=Array.from(tableBody.querySelectorAll("tr")); let idx=0;
-  for(let r=0;r<rows.length && idx<parts.length;r++){ const row=rows[r];
-    const L=row.querySelector(".length"); const W=row.querySelector(".width"); const G=row.querySelector(".group");
-    if((L.value||W.value)) continue; L.value=parts[idx].length.toFixed(2); W.value=parts[idx].width.toFixed(2);
-    if(parts[idx].label) G.value=parts[idx].label; idx++; }
-  if(idx<parts.length){ const need=parts.length-idx; ensureRows(rows.length+need);
-    const all=Array.from(tableBody.querySelectorAll("tr"));
-    for(let r=rows.length;r<all.length && idx<parts.length;r++){ const row=all[r];
-      row.querySelector(".length").value=parts[idx].length.toFixed(2);
-      row.querySelector(".width").value =parts[idx].width.toFixed(2);
-      if(parts[idx].label) row.querySelector(".group").value=parts[idx].label; idx++; } }
-  calculate();
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.results h2 { margin: 0 0 10px 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
 }
 
-/* ========= Prefab Suggest ========= */
-const WIDTH_BUCKET_STEP = 0.125;
-function bucketKey(w){ return (Math.round(w/WIDTH_BUCKET_STEP)*WIDTH_BUCKET_STEP).toFixed(3); }
-function parseSizeTuple(sz){
-  const [L,W] = String(sz).toLowerCase().split('x').map(Number);
-  if (!isFinite(L) || !isFinite(W)) return null;
-  return [Math.max(L,W), Math.min(L,W)];
-}
-function getCandidates(material, type, stone) {
-  const by = (BY && BY[material]) ? BY[material] : null;
-  if (!by) return [];
-  const stoneSet = (stone && by[stone]) ? by[stone] : null;
-  if (!stoneSet || stoneSet.size === 0) return [];
-  const list = Array.from(stoneSet).map(parseSizeTuple).filter(Boolean);
-  if (type === "FullBacksplash") return list;
-  return list;
-}
-function packWidthBucket(parts,cands,width){
-  const EPS=1e-6; 
-  const sizes=cands.filter(([SL,SW])=>SW+EPS>=width).sort((a,b)=>a[0]-b[0]);
-  if(!sizes.length) return parts.map(p=>({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}));
-  const maxSL=Math.max(...sizes.map(([SL])=>SL)); 
-  const bins=[]; 
-  const list=parts.slice().sort((a,b)=>b.L-a.L);
-  for(const p of list){
-    if(p.L-EPS>maxSL){ 
-      bins.push({SL:p.L,SW:width,remaining:0,nofit:true,cuts:[{part:p,cutL:p.L}]}); 
-      continue; 
-    }
-    let placed=false;
-    for(const b of bins){ 
-      if(!b.nofit && b.remaining+EPS>=p.L){ 
-        b.cuts.push({part:p,cutL:p.L}); 
-        b.remaining-=p.L; 
-        placed=true; 
-        break; 
-      } 
-    }
-    if(!placed){ 
-      const best=sizes.find(([SL])=>SL+EPS>=p.L) || sizes[sizes.length-1];
-      bins.push({SL:best[0],SW:best[1],remaining:best[0]-p.L,cuts:[{part:p,cutL:p.L}]}); 
-    }
-  }
-  return bins;
-}
-function addSuggestRow(idx,group,typ,cut,source,prefab,left){
-  const tr=document.createElement("tr");
-  tr.innerHTML=`<td>${idx}</td><td>${group}</td><td>${typ}</td><td>${cut}</td><td>${source}</td><td>${prefab}</td><td>${left}</td>`;
-  suggestBody.appendChild(tr);
-}
-function suggestPieces(){
-  suggestBody.innerHTML=""; 
-  prefabSummary.innerHTML="";
+#result-area p { margin: 8px 0; }
 
-  const parts=[]; 
-  Array.from(tableBody.querySelectorAll("tr")).forEach((row,i)=>{
-    const L=parseFloat(row.querySelector(".length")?.value)||0;
-    const W=parseFloat(row.querySelector(".width")?.value)||0;
-    const mat=row.querySelector(".material")?.value||"Quartz";
-    const typ=row.querySelector(".ptype")?.value||"Countertop";
-    const group=(row.querySelector(".group")?.value||"").trim();
-    const stone=(document.getElementById("stoneSelect")?.value||"").trim();
-    if(L>0 && W>0) parts.push({idx:i+1, group, L:Math.max(L,W), W:Math.min(L,W), mat, typ, stone});
-  });
-  if(!parts.length) return;
-
-  const pools=new Map();
-  parts.forEach(p=>{
-    const k=`${p.mat}|${p.typ}`; 
-    if(!pools.has(k)) pools.set(k,new Map());
-    const wk=bucketKey(p.W); 
-    const byW=pools.get(k); 
-    (byW.get(wk)||byW.set(wk,[]).get(wk)).push(p);
-  });
-
-  const pieceCounts={};
-  const addCount=(mat,SL,SW)=>{
-    const K=`${SL}×${SW}`; 
-    (pieceCounts[mat] ||= {}); 
-    pieceCounts[mat][K]=(pieceCounts[mat][K]||0)+1; 
-  };
-
-  pools.forEach((byW,key)=>{
-    const [mat,typ]=key.split("|");
-    byW.forEach(arr=>{
-      const width=arr[0].W; 
-      const cands = getCandidates(mat, typ, arr[0].stone);
-      if(!cands.length){ 
-        arr.forEach(p=>addSuggestRow(p.idx,p.group,typ,`${p.L.toFixed(2)}×${p.W.toFixed(2)}`,"No fit","-","-")); 
-        return; 
-      }
-      const bins=packWidthBucket(arr,cands,width);
-      bins.forEach((b,bi)=>{
-        if(!b.nofit && b.SL && b.SW) addCount(mat,b.SL,b.SW);
-        let running=b.SL||0;
-        (b.cuts||[]).forEach(c=>{
-          running -= c.cutL;
-          const cutStr=`${c.cutL.toFixed(2)}×${width.toFixed(2)}`;
-          const prefabStr=(b.SL&&b.SW)?`${b.SL.toFixed(2)}×${b.SW.toFixed(2)} (Piece #${bi+1})`:"-";
-          const leftStr=b.SL?`${Math.max(0,running).toFixed(2)}×${width.toFixed(2)} (Piece #${bi+1})`:"-";
-          addSuggestRow(c.part.idx,c.part.group,typ,cutStr,b.nofit?"No fit":"Prefab",prefabStr,leftStr);
-        });
-      });
-    });
-  });
-
-  const rowsHtml = Object.keys(pieceCounts).length
-    ? Object.entries(pieceCounts).map(([mat,sizes])=>Object.entries(sizes)
-        .sort((a,b)=>a[0].localeCompare(b[0]))
-        .map(([sz,cnt])=>`<tr><td>${mat}</td><td>${sz}</td><td>${cnt}</td></tr>`).join("")
-      ).join("")
-    : `<tr><td colspan="3" class="muted">No prefab pieces required.</td></tr>`;
-  prefabSummary.innerHTML = `<h3>Prefab roll-up</h3>
-    <table><thead><tr><th>Material</th><th>Prefab size (in)</th><th>Count</th></tr></thead>
-    <tbody>${rowsHtml}</tbody></table>`;
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
 }
 
-/* ========= DEBUG (optional, but helpful) ========= */
-async function debugCsvAvailability(){
-  const hint = document.getElementById("stoneHint");
-  for (const [mat, filename] of Object.entries(CSV_FILES)) {
-    for (const prefix of CSV_CANDIDATE_PREFIXES) {
-      const path = `${prefix}${filename}`;
-      try {
-        const res = await fetch(path, { cache: "no-store" });
-        console.log(`[CSV DEBUG] ${mat}: try ${path} → ${res.status}`);
-        if (res.ok) {
-          const first = (await res.text()).split(/\r?\n/)[0] || "";
-          console.log(`[CSV DEBUG] ${mat}: headers @ ${path} →`, first);
-          if (hint && !hint.dataset.locked) hint.textContent = `Found ${mat} at ${path}`;
-          break;
-        }
-      } catch (e) {
-        console.warn(`[CSV DEBUG] ${mat}: ${path} error →`, e.message);
-      }
-    }
-  }
+.debug pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: var(--muted);
 }
-
-/* ========= BOOT (safe) ========= */
-let BY = {};                 // Material -> Stone -> Set("LxW")
-let STRICT_INDEX = null;     // { map, normIndex }
-
-document.addEventListener("DOMContentLoaded", async ()=>{
-  // Guard: if table body exists, make rows
-  if (document.getElementById("tableBody")) ensureRows(30);
-
-  // Wire listeners (guard each element so a missing ID can’t crash boot)
-  document.querySelectorAll('#sink-options .sink-qty')?.forEach(input=>{
-    const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
-    input.addEventListener("input", ()=>{ clamp(); calculate(); });
-    input.addEventListener("blur", clamp);
-  });
-  document.getElementById("oversizeFeeInput")?.addEventListener("input", calculate);
-  document.getElementById("btnPlywood")?.addEventListener("click", suggestPlywood);
-  document.getElementById("recalcBtn")?.addEventListener("click", calculate);
-
-  const hint = document.getElementById("stoneHint");
-  if (hint) hint.textContent = "Loading CSV data…";
-
-  const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
-
-  try {
-    for (const [mat, filename] of Object.entries(CSV_FILES)) {
-      store[mat] = await loadMaterialCSVFlexible(filename);
-    }
-    const STRICT = buildStrictSizeMap(store);
-    BY = STRICT.map;
-    STRICT_INDEX = STRICT;
-    if (hint) { hint.textContent = "CSV data loaded. Choose a material, then stone."; hint.dataset.locked = "1"; }
-  } catch (e) {
-    console.warn("CSV load failed", e);
-    if (hint) { hint.textContent = `CSV load failed: ${e.message || e}`; hint.dataset.locked = "1"; }
-    // Temporary fallback so dropdowns still work
-    BY = {
-      Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
-      Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
-      Quartzite:{ "Demo Quartzite C": new Set(["120x26"]) },
-      Marble:   { "Demo Marble D": new Set(["98x26"]) }
-    };
-  }
-
-  setupGlobalStoneSelector?.();
-  calculate?.();
-
-  // Optional: background probe, does not block UI
-  (async ()=>{
-    for (const [mat, filename] of Object.entries(CSV_FILES)) {
-      for (const prefix of ["/csv/", "./csv/", "csv/"]) {
-        const path = `${prefix}${filename}`;
-        try {
-          const res = await fetchWithTimeout(path, 7000);
-          console.log(`[CSV DEBUG] ${mat}: try ${path} → ${res.status}`);
-          if (res.ok) break;
-        } catch {}
-      }
-    }
-  })();
-});
-
-
-    // Now wire the selectors and do the first calc
-    setupGlobalStoneSelector?.();
-    calculate?.();
-
-    // Kick off debug probe in the background (doesn't block UI)
-    ;(async function debugCsvAvailability(){
-      const hint = document.getElementById("stoneHint");
-      for (const [mat, filename] of Object.entries(CSV_FILES)) {
-        for (const prefix of CSV_CANDIDATE_PREFIXES) {
-          const path = `${prefix}${filename}`;
-          try {
-            const res = await fetchWithTimeout(path, 7000);
-            console.log(`[CSV DEBUG] ${mat}: try ${path} → ${res.status}`);
-            if (res.ok) {
-              const first = (await res.text()).split(/\r?\n/)[0] || "";
-              console.log(`[CSV DEBUG] ${mat}: headers @ ${path} →`, first);
-              if (hint && !hint.dataset.locked) hint.textContent = `Found ${mat} at ${path}`;
-              break;
-            }
-          } catch (e) {
-            console.warn(`[CSV DEBUG] ${mat}: ${path} error →`, e.message);
-          }
-        }
-      }
-    })();
-
-  } catch (fatal) {
-    const hint = document.getElementById('stoneHint');
-    if (hint && !hint.dataset.locked) hint.textContent = `Fatal init error: ${fatal.message || fatal}`;
-    console.error('Fatal init error:', fatal);
-  }
-});
-/* ===== EMERGENCY PATCH: never block UI on CSV ===== */
-(function emergencyBootGuard(){
-  const hint = document.getElementById('stoneHint');
-  // 1) Ensure input rows exist so you can type dimensions immediately
-  try {
-    if (document.getElementById('tableBody') && !document.getElementById('tableBody').children.length) {
-      ensureRows(30);
-    }
-  } catch (e) {
-    console.warn('ensureRows failed:', e);
-  }
-
-  // 2) Always wire critical listeners so buttons work
-  try {
-    document.querySelectorAll('#sink-options .sink-qty').forEach(input=>{
-      const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
-      input.addEventListener("input", ()=>{ clamp(); calculate(); });
-      input.addEventListener("blur", clamp);
-    });
-    document.getElementById("oversizeFeeInput")?.addEventListener("input", calculate);
-    document.getElementById("btnPlywood")?.addEventListener("click", suggestPlywood);
-    document.getElementById("recalcBtn")?.addEventListener("click", calculate);
-  } catch (e) { console.warn('listener wiring failed:', e); }
-
-  // 3) If CSVs haven’t populated stones in 3 seconds, inject a demo map so the dropdown works
-  setTimeout(()=>{
-    const hasQuartz = BY && BY.Quartz && Object.keys(BY.Quartz).length > 0;
-    if (!hasQuartz) {
-      console.warn('[EMERGENCY] CSVs not available → injecting demo stones so UI is usable.');
-      window.BY = {
-        Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
-        Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
-        Quartzite:{ "Demo Qu
-
