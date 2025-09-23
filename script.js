@@ -569,50 +569,82 @@ async function debugCsvAvailability(){
   }
 }
 
-/* ========= BOOT ========= */
-let BY = {};
-let STRICT_INDEX = null;
+/* ========= BOOT (safe) ========= */
+let BY = {};                 // Material -> Stone -> Set("LxW")
+let STRICT_INDEX = null;     // { map, normIndex }
 
 document.addEventListener("DOMContentLoaded", async ()=>{
-  ensureRows(30);
+  try {
+    // Guards: don’t explode if some elements are missing
+    if (exists('tableBody')) ensureRows(30);
 
-  document.querySelectorAll('#sink-options .sink-qty').forEach(input=>{
-    const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
-    input.addEventListener("input", ()=>{ clamp(); calculate(); });
-    input.addEventListener("blur", clamp);
-  });
-  document.getElementById("oversizeFeeInput")?.addEventListener("input", calculate);
-  document.getElementById("btnPlywood")?.addEventListener("click", suggestPlywood);
+    // Wire listeners only if containers exist
+    if (exists('sink-options')) {
+      $all('#sink-options .sink-qty').forEach(input=>{
+        const clamp=()=>{ let v=parseInt(input.value||"0",10); if(isNaN(v)||v<0) v=0; if(v>20) v=20; input.value=String(v); };
+        input.addEventListener("input", ()=>{ clamp(); calculate(); });
+        input.addEventListener("blur", clamp);
+      });
+    }
+    $('#oversizeFeeInput')?.addEventListener("input", calculate);
+    $('#btnPlywood')?.addEventListener("click", suggestPlywood);
+    $('#recalcBtn')?.addEventListener("click", calculate);
 
-  await debugCsvAvailability(); // shows which prefix works
+    const hint = $('#stoneHint');
+    if (hint && !hint.textContent) hint.textContent = 'Loading CSV data…';
 
-  const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
-  const hint = document.getElementById("stoneHint");
+    // Load CSVs (don’t await any debug probes first)
+    const store={ Quartz:[], Granite:[], Quartzite:[], Marble:[] };
+    try{
+      for (const [mat, filename] of Object.entries(CSV_FILES)) {
+        store[mat] = await loadMaterialCSVFlexible(filename);
+      }
+      const STRICT = buildStrictSizeMap(store);
+      BY = STRICT.map;
+      STRICT_INDEX = STRICT;
 
-  try{
-    // USE FLEXIBLE LOADER (this was your bug)
-    for (const [mat, filename] of Object.entries(CSV_FILES)) {
-      store[mat] = await loadMaterialCSVFlexible(filename);
+      if (hint) { hint.textContent = "CSV data loaded. Choose a material, then stone."; hint.dataset.locked = "1"; }
+    }catch(e){
+      console.warn("CSV load failed", e);
+      if (hint) { hint.textContent = `CSV load failed: ${e.message || e}`; hint.dataset.locked = "1"; }
+      // TEMP: fallback so UI still works
+      BY = {
+        Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
+        Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
+        Quartzite:{ "Demo Quartzite C": new Set(["120x26"]) },
+        Marble:   { "Demo Marble D": new Set(["98x26"]) }
+      };
     }
 
-    const STRICT = buildStrictSizeMap(store);
-    BY = STRICT.map;
-    STRICT_INDEX = STRICT;
+    // Now wire the selectors and do the first calc
+    setupGlobalStoneSelector?.();
+    calculate?.();
 
-    if (hint) { hint.textContent = "CSV data loaded. Choose a material, then stone."; hint.dataset.locked = "1"; }
-  }catch(e){
-    console.warn("CSV load failed", e);
-    if (hint) { hint.textContent = `Could not load CSVs: ${e.message || e}`; hint.dataset.locked = "1"; }
+    // Kick off debug probe in the background (doesn't block UI)
+    ;(async function debugCsvAvailability(){
+      const hint = document.getElementById("stoneHint");
+      for (const [mat, filename] of Object.entries(CSV_FILES)) {
+        for (const prefix of CSV_CANDIDATE_PREFIXES) {
+          const path = `${prefix}${filename}`;
+          try {
+            const res = await fetchWithTimeout(path, 7000);
+            console.log(`[CSV DEBUG] ${mat}: try ${path} → ${res.status}`);
+            if (res.ok) {
+              const first = (await res.text()).split(/\r?\n/)[0] || "";
+              console.log(`[CSV DEBUG] ${mat}: headers @ ${path} →`, first);
+              if (hint && !hint.dataset.locked) hint.textContent = `Found ${mat} at ${path}`;
+              break;
+            }
+          } catch (e) {
+            console.warn(`[CSV DEBUG] ${mat}: ${path} error →`, e.message);
+          }
+        }
+      }
+    })();
 
-    // TEMP fallback so UI stays usable while you fix file locations
-    BY = {
-      Quartz:   { "Demo Quartz A": new Set(["108x26","112x26"]) },
-      Granite:  { "Demo Granite B": new Set(["110x26","120x28"]) },
-      Quartzite:{ "Demo Quartzite C": new Set(["120x26"]) },
-      Marble:   { "Demo Marble D": new Set(["98x26"]) }
-    };
+  } catch (fatal) {
+    const hint = document.getElementById('stoneHint');
+    if (hint && !hint.dataset.locked) hint.textContent = `Fatal init error: ${fatal.message || fatal}`;
+    console.error('Fatal init error:', fatal);
   }
-
-  setupGlobalStoneSelector();
-  calculate();
 });
