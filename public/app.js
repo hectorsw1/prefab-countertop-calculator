@@ -36,11 +36,26 @@ function toSizeKey(L, W){
 }
 
 function parseSizeKey(any){
-  const s = String(any||"").toLowerCase().replace(/"/g,"").replace(/\s+/g,"");
-  // accept "108x26", "26x108", "108 × 26"
-  const m = s.match(/^(\d{2,3})\s*[x×]\s*(\d{2,3})$/i);
+  if (any == null) return null;
+  let s = String(any)
+    .toLowerCase()
+    .replace(/\u00a0/g, " ")
+    .replace(/["′’”]/g, "")      // strip inch/quote symbols
+    .replace(/\s+by\s+/g, "x")   // “108 by 26” → “108x26”
+    .replace(/\s*[x×]\s*/g, "x") // normalize separators
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // now expect something like 108x26 or 108.0x26.00
+  const m = s.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/);
   if (!m) return null;
-  return toSizeKey(m[1], m[2]);
+
+  const L = Math.round(parseFloat(m[1]));
+  const W = Math.round(parseFloat(m[2]));
+  if (!Number.isFinite(L) || !Number.isFinite(W)) return null;
+
+  const big = Math.max(L, W), small = Math.min(L, W);
+  return `${big}x${small}`;
 }
 
 /* ---------------- CSV parser (tolerant) ---------------- */
@@ -121,16 +136,50 @@ async function loadAllCSVs(){
   statusEl && (statusEl.textContent = "Loading CSV data…");
   for (const mat of Object.keys(CSV_FILES)){
     try{
-      const text = await fetchText(CSV_FILES[mat]);
+      const text = await fetch(CSV_FILES[mat], { cache: "no-store" }).then(r=>{
+        if(!r.ok) throw new Error(`${CSV_FILES[mat]} → ${r.status}`);
+        return r.text();
+      });
       const rows = parseCSV(text);
-      if (!rows.length) { dlog(`[${mat}] empty CSV`); dataByMaterial[mat] = { stones:new Set(), sizesByStone:new Map(), anySizes:new Set() }; continue; }
+      if (!rows.length){ dataByMaterial[mat] = { stones:new Set(), sizesByStone:new Map(), anySizes:new Set() }; continue; }
 
       const { stoneCol, sizeCol } = detectColumns(rows);
-      if (!stoneCol || !sizeCol){
-        dlog(`[${mat}] Could not detect columns. headers=`, Object.keys(rows[0]));
+      if (!stoneCol){ 
+        dlog(`[${mat}] No stone column detected. headers=`, Object.keys(rows[0]));
         dataByMaterial[mat] = { stones:new Set(), sizesByStone:new Map(), anySizes:new Set() };
         continue;
       }
+
+      const stones = new Set();
+      const sizesByStone = new Map();
+      const anySizes = new Set();
+
+      for (const r of rows){
+        const stoneName = norm(r[stoneCol]);
+        if (!stoneName) continue;
+
+        // ALWAYS collect the stone so the dropdown populates
+        stones.add(stoneName);
+        if (!sizesByStone.has(stoneName)) sizesByStone.set(stoneName, new Set());
+
+        // Size is optional; only add if we can parse it
+        let sizeKey = null;
+        if (sizeCol) sizeKey = parseSizeKey(r[sizeCol]);
+        if (sizeKey){
+          sizesByStone.get(stoneName).add(sizeKey);
+          anySizes.add(sizeKey);
+        }
+      }
+
+      dlog(`[${mat}] Stones=${stones.size} AnySizes=${anySizes.size} (stoneCol="${stoneCol}", sizeCol="${sizeCol||'N/A'}")`);
+      dataByMaterial[mat] = { stones, sizesByStone, anySizes };
+    } catch(e){
+      dlog(`[${mat}] load error: ${String(e)}`);
+      dataByMaterial[mat] = { stones:new Set(), sizesByStone:new Map(), anySizes:new Set() };
+    }
+  }
+  statusEl && (statusEl.textContent = "CSV loaded");
+}
 
       const stones = new Set();
       const sizesByStone = new Map();
