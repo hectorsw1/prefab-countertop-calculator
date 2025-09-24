@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prefab Countertop Calculator</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Prefab Countertop Calculator</h1>
+    <div id="csv-status" class="badge">Loading CSV data…</div>
+  </header>
+
+  <main class="container">
+    <section class="controls">
+      <div class="row">
+        <label for="material">Material</label>
+        <select id="material">
+          <option value="">Select material…</option>
+          <option value="Quartz">Quartz</option>
+          <option value="Granite">Granite</option>
+          <option value="Quartzite">Quartzite</option>
+          <option value="Marble">Marble</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="stone">Stone (Color)</label>
+        <select id="stone" disabled>
+          <option value="">Select stone…</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="size">Available Size</label>
+        <select id="size" disabled>
+          <option value="">Select size…</option>
+        </select>
+      </div>
+
+      <hr/>
+
+      <div class="row">
+        <label for="length">Piece Length (in)</label>
+        <input id="length" type="number" min="1" step="1" placeholder="e.g. 96"/>
+      </div>
+      <div class="row">
+        <label for="width">Piece Width (in)</label>
+        <input id="width" type="number" min="1" step="1" placeholder="e.g. 26"/>
+      </div>
+
+      <div class="buttons">
+        <button id="btn-calc">Calculate Countertops</button>
+        <button id="btn-plywood">Calculate Plywood</button>
+      </div>
+    </section>
+
+    <section class="results">
+      <h2>Results</h2>
+      <div id="result-area" class="card">
+        <p>Enter dimensions and click a button to see results.</p>
+      </div>
+    </section>
+
+    <section class="debug">
+      <details>
+        <summary>Debug Log</summary>
+        <pre id="debug-log"></pre>
+      </details>
+    </section>
+  </main>
+
+<script src="/app.js"></script>
+</body>
+</html>
