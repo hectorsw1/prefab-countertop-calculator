@@ -21,7 +21,8 @@ const debugEl = $("debug-log");
 function dlog(...a){ console.log(...a); if (debugEl) debugEl.textContent += a.map(x=>typeof x==="string"?x:JSON.stringify(x)).join(" ")+"\n"; }
 
 function norm(s){
-  return String(s||"")
+  return String(s || "")
+    .replace(/^\uFEFF/, "")        // strip UTF-8 BOM if present
     .normalize("NFKC")
     .replace(/\u00A0/g, " ")
     .replace(/\s+/g, " ")
@@ -60,19 +61,24 @@ function parseSizeKey(any){
 
 /* ---------------- CSV parser (tolerant) ---------------- */
 function parseCSV(text){
-  // try comma first; if too few cols overall, try semicolon
-  const delimiter = (text.match(/;/g)||[]).length > (text.match(/,/g)||[]).length ? ";" : ",";
+  // detect delimiter by highest count
+  const counts = {
+    ",": (text.match(/,/g)||[]).length,
+    ";": (text.match(/;/g)||[]).length,
+    "\t": (text.match(/\t/g)||[]).length
+  };
+  const delimiter = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+
   const rows = [];
-  let row = [], cell = "", inQuotes = false;
+  let row=[], cell="", inQuotes=false;
   for (let i=0;i<text.length;i++){
     const ch = text[i];
     if (inQuotes){
       if (ch === '"'){
-        if (text[i+1] === '"'){ cell += '"'; i++; }
-        else inQuotes = false;
+        if (text[i+1] === '"'){ cell+='"'; i++; } else inQuotes=false;
       } else cell += ch;
     } else {
-      if (ch === '"') inQuotes = true;
+      if (ch === '"') inQuotes=true;
       else if (ch === delimiter){ row.push(cell); cell=""; }
       else if (ch === "\n"){ row.push(cell); rows.push(row); row=[]; cell=""; }
       else if (ch === "\r"){ /* ignore */ }
@@ -80,44 +86,48 @@ function parseCSV(text){
     }
   }
   if (cell.length || row.length){ row.push(cell); rows.push(row); }
-  if (!rows.length) return [];
 
-  const header = rows[0].map(h=>norm(h).toLowerCase());
+  if (!rows.length) return [];
+  const header = rows[0].map(h => norm(h).toLowerCase());
   const body = rows.slice(1);
-  const out = body.map(r=>{
+
+  return body.map(line=>{
     const obj = {};
-    header.forEach((h, i)=> obj[h] = norm(r[i]));
+    header.forEach((h, i)=> obj[h] = norm(line[i]));
     return obj;
   });
-  return out;
 }
 
 /* ---------------- autodetect columns ---------------- */
 function detectColumns(rows){
-  // pick stoneCol: prefer headers with these names; else first non-size-ish texty column
-  const candidatesStone = ["stone","color","name","stone name","product","model","sku","colour"];
-  const candidatesSize  = ["size","dimension","dimensions","size (in)","slab size","prefab size"];
+  const headers = rows.length ? Object.keys(rows[0]).map(h => h.toLowerCase()) : [];
 
-  const headers = rows.length ? Object.keys(rows[0]) : [];
+  // preferred names
+  const stoneNames = ["stone","stone name","color","colour","name","product","model","sku"];
+  const sizeNames  = ["size","dimension","dimensions","size (in)","slab size","prefab size"];
 
-  let stoneCol = headers.find(h => candidatesStone.includes(h)) || null;
-  let sizeCol  = headers.find(h => candidatesSize.includes(h))  || null;
+  let stoneCol = headers.find(h => stoneNames.includes(h)) || null;
+  let sizeCol  = headers.find(h => sizeNames.includes(h))  || null;
 
-  // Fallback: detect by value patterns
+  // detect size by value pattern if needed
   if (!sizeCol){
     for (const h of headers){
-      const vals = rows.slice(0, 30).map(r=>r[h]);
+      const vals = rows.slice(0, 50).map(r => r[h]);
       if (vals.some(v => parseSizeKey(v))) { sizeCol = h; break; }
     }
   }
+
+  // fallback: pick the longest-text column as stone
   if (!stoneCol){
+    let best = null, bestScore = -1;
     for (const h of headers){
       if (h === sizeCol) continue;
-      const vals = rows.slice(0, 30).map(r=>r[h]);
-      // choose column that has text and NOT mostly numeric or size-like
-      const texty = vals.filter(v => v && !/^\d+(\.\d+)?$/.test(v) && !parseSizeKey(v)).length;
-      if (texty >= Math.ceil(vals.length*0.3)) { stoneCol = h; break; }
+      const vals = rows.slice(0, 50).map(r => r[h]).filter(Boolean);
+      const texty = vals.filter(v => !/^\d+(\.\d+)?$/.test(v) && !parseSizeKey(v)).join(" ");
+      const score = texty.length;
+      if (score > bestScore){ best = h; bestScore = score; }
     }
+    stoneCol = best;
   }
 
   return { stoneCol, sizeCol };
@@ -141,6 +151,15 @@ async function loadAllCSVs(){
         return r.text();
       });
       const rows = parseCSV(text);
+      // DEBUG: print headers and a sample row
+if (rows.length){
+  const headers = Object.keys(rows[0]);
+  dlog(`[${mat}] headers=`, headers);
+  dlog(`[${mat}] sample=`, rows[0]);
+}
+const { stoneCol, sizeCol } = detectColumns(rows);
+dlog(`[${mat}] detected stoneCol="${stoneCol}", sizeCol="${sizeCol}"`);
+
       if (!rows.length){ dataByMaterial[mat] = { stones:new Set(), sizesByStone:new Map(), anySizes:new Set() }; continue; }
 
       const { stoneCol, sizeCol } = detectColumns(rows);
