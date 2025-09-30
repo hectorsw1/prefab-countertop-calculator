@@ -185,11 +185,11 @@
     }
 
     .quick-add-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr 2fr 1fr auto;
-      gap: 0.75rem;
-      align-items: end;
-    }
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: end;
+}
 
     .section-list {
       background: var(--bg-input);
@@ -200,13 +200,13 @@
     }
 
     .section-item {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr 2fr 1fr auto;
-      gap: 0.75rem;
-      padding: 0.75rem;
-      border-bottom: 1px solid var(--border);
-      align-items: center;
-    }
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr 1fr auto;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
 
     .section-item:last-child {
       border-bottom: none;
@@ -494,31 +494,33 @@
       <div class="quick-add">
         <h3>Quick Add Section</h3>
         <div class="quick-add-grid">
-          <input type="text" id="quick-name" placeholder="Section name (e.g., Kitchen Island)">
-          <input type="number" id="quick-length" placeholder="Length" min="1">
-          <input type="number" id="quick-width" placeholder="Width" min="1">
-          <select id="quick-type">
-            <option value="countertop">Countertop</option>
-            <option value="island">Island</option>
-          </select>
-          <select id="quick-joint">
-            <option value="standalone">Standalone</option>
-            <option value="jointed">Jointed</option>
-          </select>
-          <button class="btn btn-small" onclick="addSection()">+ Add</button>
-        </div>
+  <input type="text" id="quick-name" placeholder="Section name (e.g., Kitchen Island)">
+  <input type="number" id="quick-length" placeholder="Length" min="1">
+  <input type="number" id="quick-width" placeholder="Width" min="1">
+  <select id="quick-type">
+    <option value="countertop">Countertop</option>
+    <option value="island">Island</option>
+  </select>
+  <select id="quick-joint">
+    <option value="standalone">Standalone</option>
+    <option value="jointed">Jointed</option>
+  </select>
+  <input type="text" id="quick-joint-group" placeholder="Joint Group (e.g., A, B, C)">
+  <button class="btn btn-small" onclick="addSection()">+ Add</button>
+</div>
       </div>
 
       <!-- Section List -->
       <div class="section-list" id="sections-list">
         <div class="section-item" style="font-weight: 600; background: var(--bg-card);">
-          <div>Section Name</div>
-          <div>Length (in)</div>
-          <div>Width (in)</div>
-          <div>Type</div>
-          <div>Joint Status</div>
-          <div>Remove</div>
-        </div>
+  <div>Section Name</div>
+  <div>Length (in)</div>
+  <div>Width (in)</div>
+  <div>Type</div>
+  <div>Joint Status</div>
+  <div>Joint Group</div>
+  <div>Remove</div>
+</div>
       </div>
     </section>
 
@@ -672,35 +674,38 @@
     }
 
     function addSection() {
-      const name = document.getElementById('quick-name').value.trim() || `Section ${String.fromCharCode(65 + sectionCounter)}`;
-      const length = parseFloat(document.getElementById('quick-length').value);
-      const width = parseFloat(document.getElementById('quick-width').value);
-      const type = document.getElementById('quick-type').value;
-      const joint = document.getElementById('quick-joint').value;
+  const name = document.getElementById('quick-name').value.trim() || `Section ${String.fromCharCode(65 + sectionCounter)}`;
+  const length = parseFloat(document.getElementById('quick-length').value);
+  const width = parseFloat(document.getElementById('quick-width').value);
+  const type = document.getElementById('quick-type').value;
+  const joint = document.getElementById('quick-joint').value;
+  const jointGroup = document.getElementById('quick-joint-group').value.trim();
 
-      if (!length || !width || length <= 0 || width <= 0) {
-        alert('Please enter valid positive numbers for length and width');
-        return;
-      }
+  if (!length || !width || length <= 0 || width <= 0) {
+    alert('Please enter valid positive numbers for length and width');
+    return;
+  }
 
-      sectionCounter++;
-      const sectionId = `section-${sectionCounter}`;
+  sectionCounter++;
+  const sectionId = `section-${sectionCounter}`;
 
-      sections.push({
-        id: sectionId,
-        name: name,
-        length: length,
-        width: width,
-        type: type,
-        joint: joint
-      });
+  sections.push({
+    id: sectionId,
+    name: name,
+    length: length,
+    width: width,
+    type: type,
+    joint: joint,
+    jointGroup: jointGroup
+  });
 
-      renderSectionList();
+  renderSectionList();
 
-      document.getElementById('quick-name').value = '';
-      document.getElementById('quick-length').value = '';
-      document.getElementById('quick-width').value = '';
-    }
+  document.getElementById('quick-name').value = '';
+  document.getElementById('quick-length').value = '';
+  document.getElementById('quick-width').value = '';
+  document.getElementById('quick-joint-group').value = '';
+}
 
     function removeSection(sectionId) {
       sections = sections.filter(s => s.id !== sectionId);
@@ -722,23 +727,24 @@
       `;
 
       sections.forEach(section => {
-        html += `
-          <div class="section-item">
-            <input type="text" value="${section.name}" onchange="updateSectionName('${section.id}', this.value)">
-            <input type="number" value="${section.length}" min="1" onchange="updateSectionValue('${section.id}', 'length', this.value)">
-            <input type="number" value="${section.width}" min="1" onchange="updateSectionValue('${section.id}', 'width', this.value)">
-            <select onchange="updateSectionValue('${section.id}', 'type', this.value)">
-              <option value="countertop" ${section.type === 'countertop' ? 'selected' : ''}>Countertop</option>
-              <option value="island" ${section.type === 'island' ? 'selected' : ''}>Island</option>
-            </select>
-            <select onchange="updateSectionValue('${section.id}', 'joint', this.value)">
-              <option value="standalone" ${section.joint === 'standalone' ? 'selected' : ''}>Standalone</option>
-              <option value="jointed" ${section.joint === 'jointed' ? 'selected' : ''}>Jointed</option>
-            </select>
-            <button class="remove-btn" onclick="removeSection('${section.id}')">×</button>
-          </div>
-        `;
-      });
+  html += `
+    <div class="section-item">
+      <input type="text" value="${section.name}" onchange="updateSectionName('${section.id}', this.value)">
+      <input type="number" value="${section.length}" min="1" onchange="updateSectionValue('${section.id}', 'length', this.value)">
+      <input type="number" value="${section.width}" min="1" onchange="updateSectionValue('${section.id}', 'width', this.value)">
+      <select onchange="updateSectionValue('${section.id}', 'type', this.value)">
+        <option value="countertop" ${section.type === 'countertop' ? 'selected' : ''}>Countertop</option>
+        <option value="island" ${section.type === 'island' ? 'selected' : ''}>Island</option>
+      </select>
+      <select onchange="updateSectionValue('${section.id}', 'joint', this.value)">
+        <option value="standalone" ${section.joint === 'standalone' ? 'selected' : ''}>Standalone</option>
+        <option value="jointed" ${section.joint === 'jointed' ? 'selected' : ''}>Jointed</option>
+      </select>
+      <input type="text" value="${section.jointGroup || ''}" placeholder="Group" onchange="updateSectionValue('${section.id}', 'jointGroup', this.value)">
+      <button class="remove-btn" onclick="removeSection('${section.id}')">×</button>
+    </div>
+  `;
+});
 
       container.innerHTML = html;
     }
@@ -760,97 +766,118 @@
     }
 
     function calculateAll() {
-      const material = document.getElementById('material').value;
-      const stoneColor = document.getElementById('stone-color').value;
-      const edgeType = document.getElementById('edge-type').value;
-      const kitchenSinkType = document.getElementById('kitchen-sink-type').value;
-      const kitchenSinkQty = parseInt(document.getElementById('kitchen-sink-qty').value) || 0;
-      const bathroomSinkQty = parseInt(document.getElementById('bathroom-sink-qty').value) || 0;
+  const material = document.getElementById('material').value;
+  const stoneColor = document.getElementById('stone-color').value;
+  const edgeType = document.getElementById('edge-type').value;
+  const kitchenSinkType = document.getElementById('kitchen-sink-type').value;
+  const kitchenSinkQty = parseInt(document.getElementById('kitchen-sink-qty').value) || 0;
+  const bathroomSinkQty = parseInt(document.getElementById('bathroom-sink-qty').value) || 0;
 
-      if (!material) {
-        alert('Please select a material');
-        return;
+  if (!material) {
+    alert('Please select a material');
+    return;
+  }
+
+  if (!stoneColor) {
+    alert('Please select a stone color');
+    return;
+  }
+
+  if (!edgeType) {
+    alert('Please select an edge type');
+    return;
+  }
+
+  if (sections.length === 0) {
+    alert('Please add at least one section');
+    return;
+  }
+
+  const availableStones = stoneData[material] ? 
+    stoneData[material].filter(stone => stone.color === stoneColor) : [];
+
+  if (availableStones.length === 0) {
+    alert(`No stone pieces available for ${material} - ${stoneColor}`);
+    return;
+  }
+
+  const results = {
+    material: material,
+    stoneColor: stoneColor,
+    edgeType: edgeType,
+    edgePrice: edgeType === 'basic' ? 14 : 16,
+    kitchenSinkType: kitchenSinkType,
+    kitchenSinkQty: kitchenSinkQty,
+    bathroomSinkQty: bathroomSinkQty,
+    sections: [],
+    totals: {},
+    errors: []
+  };
+
+  // Group sections by joint group
+  const jointGroups = {};
+  const standaloneSections = [];
+
+  sections.forEach(section => {
+    if (section.joint === 'jointed' && section.jointGroup) {
+      if (!jointGroups[section.jointGroup]) {
+        jointGroups[section.jointGroup] = [];
+      }
+      jointGroups[section.jointGroup].push(section);
+    } else {
+      standaloneSections.push(section);
+    }
+  });
+
+  let totalInputSqFt = 0;
+  let totalStoneSqFt = 0;
+  const stonePieces = {};
+  const plywoodPieces = [];
+  const stoneLeftovers = [];
+
+  // Process joint groups - SAME SIZE STONE for Granite, Marble, Quartzite
+  for (const [groupName, groupSections] of Object.entries(jointGroups)) {
+    const requiresSameSize = ['Granite', 'Marble', 'Quartzite'].includes(material);
+    
+    if (requiresSameSize) {
+      // Find ONE stone size that fits ALL sections in the group
+      const maxLength = Math.max(...groupSections.map(s => s.length));
+      const maxWidth = Math.max(...groupSections.map(s => s.width));
+      
+      const bestStone = findBestStone(availableStones, maxLength, maxWidth, 'countertop');
+      
+      if (!bestStone.found) {
+        results.errors.push(`Joint Group "${groupName}": ${bestStone.message}`);
+        continue;
       }
 
-      if (!stoneColor) {
-        alert('Please select a stone color');
-        return;
-      }
-
-      if (!edgeType) {
-        alert('Please select an edge type');
-        return;
-      }
-
-      if (sections.length === 0) {
-        alert('Please add at least one section');
-        return;
-      }
-
-      // Get available stones for the selected material and color
-      const availableStones = stoneData[material] ? 
-        stoneData[material].filter(stone => stone.color === stoneColor) : [];
-
-      if (availableStones.length === 0) {
-        alert(`No stone pieces available for ${material} - ${stoneColor}`);
-        return;
-      }
-
-      const results = {
-        material: material,
-        stoneColor: stoneColor,
-        edgeType: edgeType,
-        edgePrice: edgeType === 'basic' ? 14 : 16,
-        kitchenSinkType: kitchenSinkType,
-        kitchenSinkQty: kitchenSinkQty,
-        bathroomSinkQty: bathroomSinkQty,
-        sections: [],
-        totals: {},
-        errors: []
-      };
-
-      // Process sections with smart stone suggestion
-      let totalInputSqFt = 0;
-      let totalStoneSqFt = 0;
-      const stonePieces = {};
-      const plywoodPieces = [];
-      const leftovers = [];
-
-      sections.forEach(section => {
+      const stoneSize = `${bestStone.stone.size_L_in}" × ${bestStone.stone.size_W_in}"`;
+      
+      // Apply this same stone size to ALL sections in the group
+      groupSections.forEach(section => {
         const inputArea = section.length * section.width / 144;
+        const stoneArea = bestStone.stone.size_L_in * bestStone.stone.size_W_in / 144;
         
-        // Find best stone for this section
-        const bestStone = findBestStone(availableStones, section.length, section.width, section.type);
-        
-        if (!bestStone.found) {
-          results.errors.push(`${section.name}: ${bestStone.message}`);
-          return;
-        }
-        
-        const stone = bestStone.stone;
-        const stoneArea = stone.size_L_in * stone.size_W_in / 144;
+        stonePieces[stoneSize] = (stonePieces[stoneSize] || 0) + 1;
         
         const plywoodLength = Math.max(1, section.length - 2);
         const plywoodWidth = Math.max(1, section.width - 3);
         
-        // Stone pieces count
-        const stoneSize = `${stone.size_L_in}" × ${stone.size_W_in}"`;
-        stonePieces[stoneSize] = (stonePieces[stoneSize] || 0) + 1;
-        
-        // Plywood pieces
         plywoodPieces.push({
           name: section.name,
           length: plywoodLength,
           width: plywoodWidth
         });
         
-        // Leftovers (only if > 26" both dimensions)
-        const leftoverLength = stone.size_L_in - section.length;
-        const leftoverWidth = stone.size_W_in - section.width;
-        if (leftoverLength > 26 && leftoverWidth > 26) {
-          leftovers.push({
+        // Calculate stone leftover
+        const leftoverLength = bestStone.stone.size_L_in - section.length;
+        const leftoverWidth = bestStone.stone.size_W_in - section.width;
+        if (leftoverLength > 0 && leftoverWidth > 0) {
+          const leftoverSqFt = (leftoverLength * leftoverWidth) / 144;
+          stoneLeftovers.push({
             name: section.name,
-            size: `${leftoverLength}" × ${leftoverWidth}"`
+            size: `${leftoverLength}" × ${leftoverWidth}"`,
+            sqft: leftoverSqFt.toFixed(2)
           });
         }
         
@@ -864,93 +891,211 @@
           stoneArea: stoneArea,
           waste: stoneArea - inputArea,
           plywoodSize: `${plywoodLength}" × ${plywoodWidth}"`,
-          stoneInfo: `${stone.color} - ${stone.type}`
+          stoneInfo: `${bestStone.stone.color} - ${bestStone.stone.type}`,
+          jointGroup: groupName
         });
       });
-
-      // Show errors if any
-      if (results.errors.length > 0) {
-        alert('Issues found:\n' + results.errors.join('\n'));
-      }
-
-// Simple accurate plywood packing
-let sheets = [];
-
-// Sort by width (widest first) for better packing
-plywoodPieces.sort((a, b) => b.width - a.width);
-
-plywoodPieces.forEach(piece => {
-  let placed = false;
-  
-  // Try to fit on existing sheets
-  for (let sheet of sheets) {
-    if (sheet.usedWidth + piece.width <= 48) {
-      sheet.usedWidth += piece.width;
-      sheet.totalLength += piece.length;
-      placed = true;
-      break;
+    } else {
+      // Quartz - can use different sizes even when jointed
+      groupSections.forEach(section => {
+        const bestStone = findBestStone(availableStones, section.length, section.width, section.type);
+        
+        if (!bestStone.found) {
+          results.errors.push(`${section.name} (Group ${groupName}): ${bestStone.message}`);
+          return;
+        }
+        
+        const stone = bestStone.stone;
+        const inputArea = section.length * section.width / 144;
+        const stoneArea = stone.size_L_in * stone.size_W_in / 144;
+        
+        const stoneSize = `${stone.size_L_in}" × ${stone.size_W_in}"`;
+        stonePieces[stoneSize] = (stonePieces[stoneSize] || 0) + 1;
+        
+        const plywoodLength = Math.max(1, section.length - 2);
+        const plywoodWidth = Math.max(1, section.width - 3);
+        
+        plywoodPieces.push({
+          name: section.name,
+          length: plywoodLength,
+          width: plywoodWidth
+        });
+        
+        // Calculate stone leftover
+        const leftoverLength = stone.size_L_in - section.length;
+        const leftoverWidth = stone.size_W_in - section.width;
+        if (leftoverLength > 0 && leftoverWidth > 0) {
+          const leftoverSqFt = (leftoverLength * leftoverWidth) / 144;
+          stoneLeftovers.push({
+            name: section.name,
+            size: `${leftoverLength}" × ${leftoverWidth}"`,
+            sqft: leftoverSqFt.toFixed(2)
+          });
+        }
+        
+        totalInputSqFt += inputArea;
+        totalStoneSqFt += stoneArea;
+        
+        results.sections.push({
+          ...section,
+          inputArea: inputArea,
+          suggestedStone: stoneSize,
+          stoneArea: stoneArea,
+          waste: stoneArea - inputArea,
+          plywoodSize: `${plywoodLength}" × ${plywoodWidth}"`,
+          stoneInfo: `${stone.color} - ${stone.type}`,
+          jointGroup: groupName
+        });
+      });
     }
   }
-  
-  // Start new sheet if doesn't fit
-  if (!placed) {
-    sheets.push({
-      usedWidth: piece.width,
-      totalLength: piece.length
+
+  // Process standalone sections
+  standaloneSections.forEach(section => {
+    const bestStone = findBestStone(availableStones, section.length, section.width, section.type);
+    
+    if (!bestStone.found) {
+      results.errors.push(`${section.name}: ${bestStone.message}`);
+      return;
+    }
+    
+    const stone = bestStone.stone;
+    const inputArea = section.length * section.width / 144;
+    const stoneArea = stone.size_L_in * stone.size_W_in / 144;
+    
+    const stoneSize = `${stone.size_L_in}" × ${stone.size_W_in}"`;
+    stonePieces[stoneSize] = (stonePieces[stoneSize] || 0) + 1;
+    
+    const plywoodLength = Math.max(1, section.length - 2);
+    const plywoodWidth = Math.max(1, section.width - 3);
+    
+    plywoodPieces.push({
+      name: section.name,
+      length: plywoodLength,
+      width: plywoodWidth
     });
-  }
-});
-
-// Adjust for jointing capability
-// If total length on a sheet > 96", but pieces are similar size, jointing is viable
-let plywoodSheets = 0;
-sheets.forEach(sheet => {
-  // Each sheet can provide ~96" base + joints from offcuts
-  // If total length needed is under ~150", one sheet suffices with joints
-  if (sheet.totalLength <= 150 && sheet.usedWidth <= 48) {
-    plywoodSheets++;
-  } else {
-    // Need multiple sheets for this group
-    plywoodSheets += Math.ceil(sheet.totalLength / 96);
-  }
-});
-
-plywoodSheets = Math.max(1, plywoodSheets);
-      // Calculate costs
-      const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : 
-                             kitchenSinkType === 'handmade-kitchen' ? 275 : 
-                             kitchenSinkType === 'handmade-workstation' ? 320 : 0;
-      
-      const totalKitchenSinkCost = kitchenSinkPrice * kitchenSinkQty;
-      const totalBathroomSinkCost = 80 * bathroomSinkQty;
-      const totalSinkCost = totalKitchenSinkCost + totalBathroomSinkCost;
-      const plywoodCost = plywoodSheets * 70;
-      const edgeCost = Math.ceil(totalInputSqFt) * results.edgePrice;
-      const grandTotal = edgeCost + totalSinkCost + plywoodCost;
-
-      results.totals = {
-        inputSqFt: totalInputSqFt,
-        inputSqFtRounded: Math.ceil(totalInputSqFt),
-        stoneSqFt: totalStoneSqFt,
-        totalWaste: totalStoneSqFt - totalInputSqFt,
-        stonesPieces: results.sections.length,
-        plywoodSheets: plywoodSheets,
-        edgeCost: edgeCost,
-        totalKitchenSinkCost: totalKitchenSinkCost,
-        totalBathroomSinkCost: totalBathroomSinkCost,
-        totalSinkCost: totalSinkCost,
-        plywoodCost: plywoodCost,
-        grandTotal: grandTotal
-      };
-
-      results.stonePiecesSummary = stonePieces;
-      results.leftovers = leftovers;
-      results.plywoodLeftovers = plywoodPieces;
-
-      displayResults(results);
-      displayPricingBreakdown(results);
-      currentResults = results;
+    
+    // Calculate stone leftover
+    const leftoverLength = stone.size_L_in - section.length;
+    const leftoverWidth = stone.size_W_in - section.width;
+    if (leftoverLength > 0 && leftoverWidth > 0) {
+      const leftoverSqFt = (leftoverLength * leftoverWidth) / 144;
+      stoneLeftovers.push({
+        name: section.name,
+        size: `${leftoverLength}" × ${leftoverWidth}"`,
+        sqft: leftoverSqFt.toFixed(2)
+      });
     }
+    
+    totalInputSqFt += inputArea;
+    totalStoneSqFt += stoneArea;
+    
+    results.sections.push({
+      ...section,
+      inputArea: inputArea,
+      suggestedStone: stoneSize,
+      stoneArea: stoneArea,
+      waste: stoneArea - inputArea,
+      plywoodSize: `${plywoodLength}" × ${plywoodWidth}"`,
+      stoneInfo: `${stone.color} - ${stone.type}`
+    });
+  });
+
+  // Show errors if any
+  if (results.errors.length > 0) {
+    alert('Issues found:\n' + results.errors.join('\n'));
+  }
+
+  // Calculate plywood sheets needed
+  let sheets = [];
+  plywoodPieces.sort((a, b) => b.width - a.width);
+
+  plywoodPieces.forEach(piece => {
+    let placed = false;
+    
+    for (let sheet of sheets) {
+      if (sheet.usedWidth + piece.width <= 48) {
+        sheet.usedWidth += piece.width;
+        sheet.totalLength += piece.length;
+        sheet.pieces.push(piece);
+        placed = true;
+        break;
+      }
+    }
+    
+    if (!placed) {
+      sheets.push({
+        usedWidth: piece.width,
+        totalLength: piece.length,
+        pieces: [piece]
+      });
+    }
+  });
+
+  let plywoodSheets = 0;
+  const plywoodLeftovers = [];
+  
+  sheets.forEach((sheet, idx) => {
+    if (sheet.totalLength <= 150 && sheet.usedWidth <= 48) {
+      plywoodSheets++;
+      const leftoverLength = 96 - sheet.totalLength;
+      if (leftoverLength > 0) {
+        plywoodLeftovers.push({
+          sheet: idx + 1,
+          size: `${leftoverLength}" × ${sheet.usedWidth}"`,
+          sqft: ((leftoverLength * sheet.usedWidth) / 144).toFixed(2)
+        });
+      }
+    } else {
+      plywoodSheets += Math.ceil(sheet.totalLength / 96);
+      const leftoverLength = (Math.ceil(sheet.totalLength / 96) * 96) - sheet.totalLength;
+      if (leftoverLength > 0) {
+        plywoodLeftovers.push({
+          sheet: idx + 1,
+          size: `${leftoverLength}" × ${sheet.usedWidth}"`,
+          sqft: ((leftoverLength * sheet.usedWidth) / 144).toFixed(2)
+        });
+      }
+    }
+  });
+
+  plywoodSheets = Math.max(1, plywoodSheets);
+
+  // Calculate costs
+  const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : 
+                         kitchenSinkType === 'handmade-kitchen' ? 275 : 
+                         kitchenSinkType === 'handmade-workstation' ? 320 : 0;
+  
+  const totalKitchenSinkCost = kitchenSinkPrice * kitchenSinkQty;
+  const totalBathroomSinkCost = 80 * bathroomSinkQty;
+  const totalSinkCost = totalKitchenSinkCost + totalBathroomSinkCost;
+  const plywoodCost = plywoodSheets * 70;
+  const edgeCost = Math.ceil(totalInputSqFt) * results.edgePrice;
+  const grandTotal = edgeCost + totalSinkCost + plywoodCost;
+
+  results.totals = {
+    inputSqFt: totalInputSqFt,
+    inputSqFtRounded: Math.ceil(totalInputSqFt),
+    stoneSqFt: totalStoneSqFt,
+    totalWaste: totalStoneSqFt - totalInputSqFt,
+    stonesPieces: results.sections.length,
+    plywoodSheets: plywoodSheets,
+    edgeCost: edgeCost,
+    totalKitchenSinkCost: totalKitchenSinkCost,
+    totalBathroomSinkCost: totalBathroomSinkCost,
+    totalSinkCost: totalSinkCost,
+    plywoodCost: plywoodCost,
+    grandTotal: grandTotal
+  };
+
+  results.stonePiecesSummary = stonePieces;
+  results.stoneLeftovers = stoneLeftovers;
+  results.plywoodLeftovers = plywoodLeftovers;
+
+  displayResults(results);
+  displayPricingBreakdown(results);
+  currentResults = results;
+}
 
     function findBestStone(availableStones, needLength, needWidth, sectionType, material, allSections, currentSection) {
   // Find stones that fit
@@ -1012,70 +1157,77 @@ plywoodSheets = Math.max(1, plywoodSheets);
 }
 
     function displayResults(results) {
-      let html = `
-        <div class="summary-grid">
-          <div class="summary-item">
-            <div class="summary-value">${results.totals.inputSqFtRounded}</div>
-            <div class="summary-label">Rounded Sq Ft for Pricing</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-value">${results.totals.stoneSqFt.toFixed(1)}</div>
-            <div class="summary-label">Total Stone Sq Ft</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-value">${results.totals.totalWaste.toFixed(1)}</div>
-            <div class="summary-label">Total Waste Sq Ft</div>
-          </div>
-          <div class="summary-item">
-            <div class="summary-value">$${results.totals.grandTotal.toFixed(0)}</div>
-            <div class="summary-label">Project Total</div>
-          </div>
-        </div>
-      `;
-      
-      html += `
-        <div class="pieces-summary">
-          <h3>Stone Pieces Required</h3>
-          <div class="pieces-list">
-      `;
-      
-      Object.entries(results.stonePiecesSummary).forEach(([size, count]) => {
-        html += `<div class="piece-tag">${count} × ${size}</div>`;
-      });
-      
-      html += `</div></div>`;
-      
-      if (results.leftovers.length > 0) {
-        html += `
-          <div class="leftovers-summary">
-            <h3>Stone Leftovers (> 26" × 26")</h3>
-            <div class="leftovers-list">
-        `;
-        
-        results.leftovers.forEach(leftover => {
-          html += `<div class="leftover-tag">${leftover.name}: ${leftover.size}</div>`;
-        });
-        
-        html += `</div></div>`;
-      }
-      
-      html += `
-        <div class="plywood-summary">
-          <h3>Plywood Requirements</h3>
-          <p style="color: var(--text-secondary); margin-bottom: 1rem;">
-            <strong>${results.totals.plywoodSheets}</strong> sheets of 48" × 96" plywood needed @ $70/sheet = <strong>$${results.totals.plywoodCost}</strong>
-          </p>
-          <div class="plywood-list">
-      `;
-      
-      results.plywoodLeftovers.forEach(plywood => {
-        html += `<div class="plywood-tag">${plywood.name}: ${plywood.length}" × ${plywood.width}"</div>`;
-      });
-      
-      html += `</div></div>`;
-      
-      document.getElementById('results').innerHTML = html;
-    }
+  let html = `
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-value">${results.totals.inputSqFtRounded}</div>
+        <div class="summary-label">Rounded Sq Ft for Pricing</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value">${results.totals.stoneSqFt.toFixed(1)}</div>
+        <div class="summary-label">Total Stone Sq Ft</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value">${results.totals.totalWaste.toFixed(1)}</div>
+        <div class="summary-label">Total Waste Sq Ft</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value">$${results.totals.grandTotal.toFixed(0)}</div>
+        <div class="summary-label">Project Total</div>
+      </div>
+    </div>
+  `;
+  
+  html += `
+    <div class="pieces-summary">
+      <h3>Stone Pieces Required</h3>
+      <div class="pieces-list">
+  `;
+  
+  Object.entries(results.stonePiecesSummary).forEach(([size, count]) => {
+    html += `<div class="piece-tag">${count} × ${size}</div>`;
+  });
+  
+  html += `</div></div>`;
+  
+  // Stone Leftovers
+  if (results.stoneLeftovers && results.stoneLeftovers.length > 0) {
+    html += `
+      <div class="leftovers-summary">
+        <h3>Stone Leftovers</h3>
+        <div class="leftovers-list">
+    `;
+    
+    results.stoneLeftovers.forEach(leftover => {
+      html += `<div class="leftover-tag">${leftover.name}: ${leftover.size} (${leftover.sqft} sq ft)</div>`;
+    });
+    
+    html += `</div></div>`;
+  }
+  
+  html += `
+    <div class="plywood-summary">
+      <h3>Plywood Requirements</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+        <strong>${results.totals.plywoodSheets}</strong> sheets of 48" × 96" plywood needed @ $70/sheet = <strong>$${results.totals.plywoodCost}</strong>
+      </p>
+  `;
+  
+  // Plywood Leftovers
+  if (results.plywoodLeftovers && results.plywoodLeftovers.length > 0) {
+    html += `<h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Plywood Leftovers:</h4><div class="plywood-list">`;
+    
+    results.plywoodLeftovers.forEach(leftover => {
+      html += `<div class="plywood-tag">Sheet ${leftover.sheet}: ${leftover.size} (${leftover.sqft} sq ft)</div>`;
+    });
+    
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  
+  document.getElementById('results').innerHTML = html;
+}
 
     function displayPricingBreakdown(results) {
       const kitchenSinkInfo = results.kitchenSinkQty > 0 ? ` (${results.kitchenSinkQty}x ${results.kitchenSinkType.replace('-', ' ')})` : '';
