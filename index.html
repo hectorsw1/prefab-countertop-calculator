@@ -873,20 +873,22 @@
         alert('Issues found:\n' + results.errors.join('\n'));
       }
 
-      // Calculate plywood sheets needed
-      let plywoodSheets = 0;
-      let currentSheetUsedWidth = 0;
-      
-      plywoodPieces.forEach(piece => {
-        if (currentSheetUsedWidth + piece.width <= 48 && piece.length <= 96) {
-          currentSheetUsedWidth += piece.width;
-        } else {
-          plywoodSheets++;
-          currentSheetUsedWidth = piece.width;
-        }
-      });
-      
-      if (currentSheetUsedWidth > 0) plywoodSheets++;
+// Calculate plywood sheets with joints allowed
+let plywoodSheets = 0;
+let currentSheetUsedWidth = 0;
+
+plywoodPieces.forEach(piece => {
+  const canFitWidth = currentSheetUsedWidth + piece.width <= 48;
+  
+  if (canFitWidth && currentSheetUsedWidth > 0) {
+    currentSheetUsedWidth += piece.width;
+  } else {
+    plywoodSheets++;
+    currentSheetUsedWidth = piece.width;
+  }
+});
+
+if (currentSheetUsedWidth > 0 && plywoodSheets === 0) plywoodSheets = 1;
 
       // Calculate costs
       const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : 
