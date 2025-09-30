@@ -873,21 +873,48 @@
         alert('Issues found:\n' + results.errors.join('\n'));
       }
 
-// Calculate plywood sheets with joints allowed
-let totalPlywoodWidthNeeded = 0;
-let maxPlywoodLength = 0;
+// Calculate plywood sheets with 2D bin packing
+let sheets = [];
 
 plywoodPieces.forEach(piece => {
-  totalPlywoodWidthNeeded += piece.width;
-  maxPlywoodLength = Math.max(maxPlywoodLength, piece.length);
+  let placed = false;
+  
+  // Try to fit in existing sheets
+  for (let sheet of sheets) {
+    // Check if piece fits in remaining width and length is compatible
+    if (sheet.usedWidth + piece.width <= 48 && 
+        (sheet.maxLength === 0 || Math.abs(sheet.maxLength - piece.length) <= 4)) {
+      // Fits on this sheet
+      sheet.usedWidth += piece.width;
+      sheet.maxLength = Math.max(sheet.maxLength, piece.length);
+      sheet.pieces.push(piece);
+      placed = true;
+      break;
+    }
+  }
+  
+  // If doesn't fit, check if it can start a new sheet
+  if (!placed) {
+    // Check if piece needs its own sheet (too long with joint)
+    if (piece.length > 110) {
+      // Needs dedicated sheet due to excessive jointing
+      sheets.push({
+        usedWidth: piece.width,
+        maxLength: piece.length,
+        pieces: [piece]
+      });
+    } else {
+      // Start new sheet
+      sheets.push({
+        usedWidth: piece.width,
+        maxLength: piece.length,
+        pieces: [piece]
+      });
+    }
+  }
 });
 
-let plywoodSheets = Math.ceil(totalPlywoodWidthNeeded / 48);
-
-if (maxPlywoodLength > 100) {
-  const longPieces = plywoodPieces.filter(p => p.length > 100).length;
-  plywoodSheets = Math.max(plywoodSheets, longPieces);
-}
+let plywoodSheets = Math.max(1, sheets.length);
 
       // Calculate costs
       const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : 
