@@ -873,49 +873,49 @@
         alert('Issues found:\n' + results.errors.join('\n'));
       }
 
-// Calculate plywood sheets with 2D bin packing
+// Simple accurate plywood packing
 let sheets = [];
+
+// Sort by width (widest first) for better packing
+plywoodPieces.sort((a, b) => b.width - a.width);
 
 plywoodPieces.forEach(piece => {
   let placed = false;
   
-  // Try to fit in existing sheets
+  // Try to fit on existing sheets
   for (let sheet of sheets) {
-    // Check if piece fits in remaining width and length is compatible
-    if (sheet.usedWidth + piece.width <= 48 && 
-        (sheet.maxLength === 0 || Math.abs(sheet.maxLength - piece.length) <= 4)) {
-      // Fits on this sheet
+    if (sheet.usedWidth + piece.width <= 48) {
       sheet.usedWidth += piece.width;
-      sheet.maxLength = Math.max(sheet.maxLength, piece.length);
-      sheet.pieces.push(piece);
+      sheet.totalLength += piece.length;
       placed = true;
       break;
     }
   }
   
-  // If doesn't fit, check if it can start a new sheet
+  // Start new sheet if doesn't fit
   if (!placed) {
-    // Check if piece needs its own sheet (too long with joint)
-    if (piece.length > 110) {
-      // Needs dedicated sheet due to excessive jointing
-      sheets.push({
-        usedWidth: piece.width,
-        maxLength: piece.length,
-        pieces: [piece]
-      });
-    } else {
-      // Start new sheet
-      sheets.push({
-        usedWidth: piece.width,
-        maxLength: piece.length,
-        pieces: [piece]
-      });
-    }
+    sheets.push({
+      usedWidth: piece.width,
+      totalLength: piece.length
+    });
   }
 });
 
-let plywoodSheets = Math.max(1, sheets.length);
+// Adjust for jointing capability
+// If total length on a sheet > 96", but pieces are similar size, jointing is viable
+let plywoodSheets = 0;
+sheets.forEach(sheet => {
+  // Each sheet can provide ~96" base + joints from offcuts
+  // If total length needed is under ~150", one sheet suffices with joints
+  if (sheet.totalLength <= 150 && sheet.usedWidth <= 48) {
+    plywoodSheets++;
+  } else {
+    // Need multiple sheets for this group
+    plywoodSheets += Math.ceil(sheet.totalLength / 96);
+  }
+});
 
+plywoodSheets = Math.max(1, plywoodSheets);
       // Calculate costs
       const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : 
                              kitchenSinkType === 'handmade-kitchen' ? 275 : 
