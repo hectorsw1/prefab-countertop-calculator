@@ -952,34 +952,64 @@ plywoodSheets = Math.max(1, plywoodSheets);
       currentResults = results;
     }
 
-    function findBestStone(availableStones, needLength, needWidth, sectionType) {
-      // Find stones that can fit the required dimensions (either orientation)
-      const fittingStones = availableStones.filter(stone => 
-        (stone.size_L_in >= needLength && stone.size_W_in >= needWidth) ||
-        (stone.size_L_in >= needWidth && stone.size_W_in >= needLength)
-      );
+    function findBestStone(availableStones, needLength, needWidth, sectionType, material, allSections, currentSection) {
+  // Find stones that fit
+  const fittingStones = availableStones.filter(stone => 
+    (stone.size_L_in >= needLength && stone.size_W_in >= needWidth) ||
+    (stone.size_L_in >= needWidth && stone.size_W_in >= needLength)
+  );
 
-      if (fittingStones.length === 0) {
-        return {
-          found: false,
-          message: `No stone available for ${needLength}" × ${needWidth}". Try different color.`
-        };
-      }
+  if (fittingStones.length === 0) {
+    return {
+      found: false,
+      message: `No stone available for ${needLength}" × ${needWidth}". Try different color.`
+    };
+  }
 
-      // Sort by least waste first, then by smallest total area
-      fittingStones.sort((a, b) => {
-        const wasteA = (a.size_L_in * a.size_W_in) - (needLength * needWidth);
-        const wasteB = (b.size_L_in * b.size_W_in) - (needLength * needWidth);
+  // Check if this section is jointed with others (natural stone rule)
+  const isNaturalStone = ['Granite', 'Marble', 'Quartzite'].includes(material);
+  
+  if (isNaturalStone && currentSection.joint === 'jointed') {
+    // Find all other jointed sections
+    const jointedSections = allSections.filter(s => s.joint === 'jointed' && s.id !== currentSection.id);
+    
+    if (jointedSections.length > 0) {
+      // Get the stone sizes already used by jointed sections
+      const usedSizes = jointedSections
+        .filter(s => s.suggestedStone)
+        .map(s => s.suggestedStone);
+      
+      if (usedSizes.length > 0) {
+        // Must use the same size as other jointed sections
+        const requiredSize = usedSizes[0];
+        const [reqL, reqW] = requiredSize.split('" × ').map(s => parseInt(s));
         
-        if (wasteA !== wasteB) return wasteA - wasteB;
-        return (a.size_L_in * a.size_W_in) - (b.size_L_in * b.size_W_in);
-      });
-
-      return {
-        found: true,
-        stone: fittingStones[0]
-      };
+        const matchingStone = fittingStones.find(stone => 
+          stone.size_L_in === reqL && stone.size_W_in === reqW
+        );
+        
+        if (matchingStone) {
+          return { found: true, stone: matchingStone };
+        } else {
+          return {
+            found: false,
+            message: `Jointed sections must use ${requiredSize}. Not available for this section.`
+          };
+        }
+      }
     }
+  }
+
+  // Sort by least waste
+  fittingStones.sort((a, b) => {
+    const wasteA = (a.size_L_in * a.size_W_in) - (needLength * needWidth);
+    const wasteB = (b.size_L_in * b.size_W_in) - (needLength * needWidth);
+    if (wasteA !== wasteB) return wasteA - wasteB;
+    return (a.size_L_in * a.size_W_in) - (b.size_L_in * b.size_W_in);
+  });
+
+  return { found: true, stone: fittingStones[0] };
+}
 
     function displayResults(results) {
       let html = `
