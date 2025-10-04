@@ -239,7 +239,9 @@ function calculateAll() {
   let totalStoneSqFt = 0;
   const plywoodPieces = [];
   const usedStones = [];
+  const availableLeftovers = [];
 
+  // Process jointed groups first
   for (const [groupName, groupSections] of Object.entries(jointGroups)) {
     groupSections.sort((a, b) => (b.length * b.width) - (a.length * a.width));
 
@@ -263,41 +265,7 @@ function calculateAll() {
           return;
         }
 
-        const stone = sectionStone.stone;
-        const stoneId = `stone-${usedStones.length}`;
-
-        const inputArea = section.length * section.width / 144;
-        const stoneArea = stone.size_L_in * stone.size_W_in / 144;
-        totalInputSqFt += inputArea;
-        totalStoneSqFt += stoneArea;
-
-        if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
-          plywoodPieces.push({
-            name: section.name,
-            length: Math.max(1, section.length - 2),
-            width: Math.max(1, section.width - 3)
-          });
-        }
-
-        usedStones.push({
-          id: stoneId,
-          stone: stone,
-          sections: [section.name],
-          leftover: {
-            length: stone.size_L_in - section.length,
-            width: stone.size_W_in - section.width
-          }
-        });
-
-        results.sections.push({
-          ...section,
-          inputArea: inputArea,
-          suggestedStone: `${stone.size_L_in}" × ${stone.size_W_in}"`,
-          stoneId: stoneId,
-          stoneArea: stoneArea,
-          waste: stoneArea - inputArea,
-          jointGroup: groupName
-        });
+        processSection(section, sectionStone.stone, usedStones, plywoodPieces, totalInputSqFt, totalStoneSqFt, results, availableLeftovers, groupName);
       });
     } else {
       groupSections.forEach(section => {
@@ -308,13 +276,38 @@ function calculateAll() {
           return;
         }
 
-        const stone = bestStone.stone;
-        const stoneId = `stone-${usedStones.length}`;
-        const inputArea = section.length * section.width / 144;
-        const stoneArea = stone.size_L_in * stone.size_W_in / 144;
-        totalInputSqFt += inputArea;
-        totalStoneSqFt += stoneArea;
+        processSection(section, bestStone.stone, usedStones, plywoodPieces, totalInputSqFt, totalStoneSqFt, results, availableLeftovers, groupName);
+      });
+    }
+  }
 
+  // Process standalone sections - CHECK LEFTOVERS FIRST
+  standaloneSections.forEach(section => {
+    let usedLeftover = false;
+
+    // Try to use existing leftover first
+    for (let i = 0; i < availableLeftovers.length; i++) {
+      const leftover = availableLeftovers[i];
+      
+      // Check if leftover fits this section
+      if ((leftover.length >= section.length && leftover.width >= section.width) ||
+          (leftover.length >= section.width && leftover.width >= section.length)) {
+        
+        // Use this leftover!
+        const stoneForLeftover = usedStones[leftover.stoneIndex];
+        stoneForLeftover.sections.push(section.name);
+        
+        // Update leftover dimensions
+        const newLeftoverLength = leftover.length - section.length;
+        const newLeftoverWidth = leftover.width;
+        
+        leftover.length = newLeftoverLength;
+        stoneForLeftover.leftover.length = newLeftoverLength;
+        
+        const inputArea = section.length * section.width / 144;
+        const stoneArea = leftover.length * leftover.width / 144;
+        totalInputSqFt += inputArea;
+        
         if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
           plywoodPieces.push({
             name: section.name,
@@ -323,70 +316,41 @@ function calculateAll() {
           });
         }
 
-        usedStones.push({
-          id: stoneId,
-          stone: stone,
-          sections: [section.name],
-          leftover: {
-            length: stone.size_L_in - section.length,
-            width: stone.size_W_in - section.width
-          }
-        });
-
         results.sections.push({
           ...section,
           inputArea: inputArea,
-          suggestedStone: `${stone.size_L_in}" × ${stone.size_W_in}"`,
-          stoneId: stoneId,
+          suggestedStone: `From Stone ${leftover.stoneIndex + 1} leftover`,
+          stoneId: stoneForLeftover.id,
           stoneArea: stoneArea,
-          waste: stoneArea - inputArea,
-          jointGroup: groupName
+          waste: 0
         });
-      });
-    }
-  }
 
-  standaloneSections.forEach(section => {
-    const bestStone = findBestStone(availableStones, section.length, section.width);
-    
-    if (!bestStone.found) {
-      results.errors.push(`${section.name}: ${bestStone.message}`);
-      return;
-    }
+        // If leftover is now too small, remove it
+        if (newLeftoverLength < 10 || newLeftoverWidth < 10) {
+          availableLeftovers.splice(i, 1);
+        }
 
-    const stone = bestStone.stone;
-    const stoneId = `stone-${usedStones.length}`;
-    const inputArea = section.length * section.width / 144;
-    const stoneArea = stone.size_L_in * stone.size_W_in / 144;
-    totalInputSqFt += inputArea;
-    totalStoneSqFt += stoneArea;
-
-    if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
-      plywoodPieces.push({
-        name: section.name,
-        length: Math.max(1, section.length - 2),
-        width: Math.max(1, section.width - 3)
-      });
-    }
-
-    usedStones.push({
-      id: stoneId,
-      stone: stone,
-      sections: [section.name],
-      leftover: {
-        length: stone.size_L_in - section.length,
-        width: stone.size_W_in - section.width
+        usedLeftover = true;
+        break;
       }
-    });
+    }
 
-    results.sections.push({
-      ...section,
-      inputArea: inputArea,
-      suggestedStone: `${stone.size_L_in}" × ${stone.size_W_in}"`,
-      stoneId: stoneId,
-      stoneArea: stoneArea,
-      waste: stoneArea - inputArea
-    });
+    // If no leftover worked, get new stone
+    if (!usedLeftover) {
+      const bestStone = findBestStone(availableStones, section.length, section.width);
+      
+      if (!bestStone.found) {
+        results.errors.push(`${section.name}: ${bestStone.message}`);
+        return;
+      }
+
+      processSection(section, bestStone.stone, usedStones, plywoodPieces, totalInputSqFt, totalStoneSqFt, results, availableLeftovers);
+    }
+  });
+
+  // Calculate totals
+  usedStones.forEach(stoneData => {
+    totalStoneSqFt += (stoneData.stone.size_L_in * stoneData.stone.size_W_in) / 144;
   });
 
   if (results.errors.length > 0) {
@@ -477,6 +441,55 @@ function calculateAll() {
   displayResults(results);
   displayPricingBreakdown(results);
   currentResults = results;
+}
+
+function processSection(section, stone, usedStones, plywoodPieces, totalInputSqFt, totalStoneSqFt, results, availableLeftovers, jointGroup = null) {
+  const stoneId = `stone-${usedStones.length}`;
+  const inputArea = section.length * section.width / 144;
+  const stoneArea = stone.size_L_in * stone.size_W_in / 144;
+  totalInputSqFt += inputArea;
+
+  if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+    plywoodPieces.push({
+      name: section.name,
+      length: Math.max(1, section.length - 2),
+      width: Math.max(1, section.width - 3)
+    });
+  }
+
+  const leftoverLength = stone.size_L_in - section.length;
+  const leftoverWidth = stone.size_W_in - section.width;
+
+  const stoneData = {
+    id: stoneId,
+    stone: stone,
+    sections: [section.name],
+    leftover: {
+      length: leftoverLength,
+      width: leftoverWidth
+    }
+  };
+
+  usedStones.push(stoneData);
+
+  // Add leftover to available pool if it's usable
+  if (leftoverLength >= 10 && leftoverWidth >= 10) {
+    availableLeftovers.push({
+      stoneIndex: usedStones.length - 1,
+      length: leftoverLength,
+      width: leftoverWidth
+    });
+  }
+
+  results.sections.push({
+    ...section,
+    inputArea: inputArea,
+    suggestedStone: `${stone.size_L_in}" × ${stone.size_W_in}"`,
+    stoneId: stoneId,
+    stoneArea: stoneArea,
+    waste: stoneArea - inputArea,
+    jointGroup: jointGroup
+  });
 }
 
 function findBestStone(availableStones, needLength, needWidth) {
