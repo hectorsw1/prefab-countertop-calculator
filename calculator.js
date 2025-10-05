@@ -507,7 +507,29 @@ function displayResults(results) {
   `;
   
   html += `<div class="pieces-summary"><h3>Stone Pieces Required</h3>`;
+
+  // Count stones by size
+  const stoneSizeCounts = {};
+  results.stones.forEach(stoneObj => {
+    const size = `${stoneObj.stone.size_L_in}" × ${stoneObj.stone.size_W_in}"`;
+    stoneSizeCounts[size] = (stoneSizeCounts[size] || 0) + 1;
+  });
+
+  // Display summary like plywood format
+  const totalStones = results.stones.length;
+  html += `<p style="color: var(--text-secondary); margin-bottom: 1rem;">`;
   
+  const sizeEntries = Object.entries(stoneSizeCounts);
+  sizeEntries.forEach(([size, count], index) => {
+    html += `<strong>${count} × ${size}</strong>`;
+    if (index < sizeEntries.length - 1) {
+      html += `, `;
+    }
+  });
+  
+  html += `</p>`;
+  
+  // Then show detailed breakdown per stone
   results.stones.forEach((stoneObj, idx) => {
     const stone = stoneObj.stone;
     const stoneSize = `${stone.size_L_in}" × ${stone.size_W_in}"`;
