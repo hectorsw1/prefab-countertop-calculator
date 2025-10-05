@@ -554,13 +554,17 @@ function displayResults(results) {
       </p>
   `;
   
-  if (results.plywoodLeftovers && results.plywoodLeftovers.length > 0) {
-    html += `<h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Plywood Leftovers:</h4><div class="plywood-list">`;
-    results.plywoodLeftovers.forEach(leftover => {
-      html += `<div class="plywood-tag">Sheet ${leftover.sheet}: ${leftover.size} (${leftover.sqft} sq ft)</div>`;
-    });
-    html += `</div>`;
-  }
+html += `<h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Plywood Leftovers:</h4>`;
+
+if (results.plywoodLeftovers && results.plywoodLeftovers.length > 0) {
+  html += `<div class="plywood-list">`;
+  results.plywoodLeftovers.forEach(leftover => {
+    html += `<div class="plywood-tag">Sheet ${leftover.sheet}: ${leftover.size} (${leftover.sqft} sq ft)</div>`;
+  });
+  html += `</div>`;
+} else {
+  html += `<p style="color: var(--text-muted); font-size: 0.9rem;">No leftover plywood</p>`;
+}
   
   html += `</div>`;
   
