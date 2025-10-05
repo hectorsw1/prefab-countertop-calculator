@@ -451,6 +451,8 @@ function calculateAll() {
 });
 
   plywoodSheets = Math.max(1, plywoodSheets);
+  // ADD THIS DEBUG LINE
+console.log('Plywood leftovers:', plywoodLeftovers);
 
   const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : 
                          kitchenSinkType === 'handmade-kitchen' ? 275 : 
