@@ -402,55 +402,41 @@ function calculateAll() {
   });
 
   let sheets = [];
-  plywoodPieces.sort((a, b) => b.width - a.width);
+plywoodPieces.sort((a, b) => b.width - a.width);
 
-  plywoodPieces.forEach(piece => {
-    let placed = false;
-    for (let sheet of sheets) {
-      if (sheet.usedWidth + piece.width <= 48) {
-        sheet.usedWidth += piece.width;
-        sheet.totalLength += piece.length;
-        placed = true;
-        break;
-      }
+plywoodPieces.forEach(piece => {
+  let placed = false;
+  for (let sheet of sheets) {
+    if (sheet.usedWidth + piece.width <= 48) {
+      sheet.usedWidth += piece.width;
+      sheet.totalLength += piece.length;
+      placed = true;
+      break;
     }
-    if (!placed) {
-      sheets.push({
-        usedWidth: piece.width,
-        totalLength: piece.length
-      });
-    }
-  });
-
-  let plywoodSheets = 0;
-  const plywoodLeftovers = [];
-  
-  sheets.forEach((sheet, idx) => {
-  if (sheet.totalLength <= 150) {
-    plywoodSheets++;
-    const leftoverLength = 96 - sheet.totalLength;
-    if (leftoverLength > 0) {
-      plywoodLeftovers.push({
-        sheet: idx + 1,
-        size: `${leftoverLength}" × ${sheet.usedWidth}"`,
-        sqft: ((leftoverLength * sheet.usedWidth) / 144).toFixed(2)
-      });
-    }
-  } else {
-    const sheetsNeeded = Math.ceil(sheet.totalLength / 96);
-    plywoodSheets += sheetsNeeded;
-    const leftoverLength = (sheetsNeeded * 96) - sheet.totalLength;
-    if (leftoverLength > 0) {
-      plywoodLeftovers.push({
-        sheet: idx + 1,
-        size: `${leftoverLength}" × ${sheet.usedWidth}"`,
-        sqft: ((leftoverLength * sheet.usedWidth) / 144).toFixed(2)
-      });
-    }
+  }
+  if (!placed) {
+    sheets.push({
+      usedWidth: piece.width,
+      totalLength: piece.length
+    });
   }
 });
 
-  plywoodSheets = Math.max(1, plywoodSheets);
+let plywoodSheets = sheets.length;
+const plywoodLeftovers = [];
+
+sheets.forEach((sheet, idx) => {
+  const leftoverLength = 96 - sheet.totalLength;
+  if (leftoverLength > 0) {
+    plywoodLeftovers.push({
+      sheet: idx + 1,
+      size: `${leftoverLength}" × ${sheet.usedWidth}"`,
+      sqft: ((leftoverLength * sheet.usedWidth) / 144).toFixed(2)
+    });
+  }
+});
+
+plywoodSheets = Math.max(1, plywoodSheets);
   // ADD THIS DEBUG LINE
 console.log('Plywood leftovers:', plywoodLeftovers);
 
