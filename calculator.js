@@ -403,24 +403,63 @@ standaloneSections.forEach(section => {
     totalStoneSqFt += (stoneObj.stone.size_L_in * stoneObj.stone.size_W_in) / 144;
   });
 
-  let sheets = [];
-plywoodPieces.sort((a, b) => b.width - a.width);
+ // Improved 2D plywood packing algorithm
+const sheets = [];
+
+// Sort plywood pieces by area (largest first) for better packing
+plywoodPieces.sort((a, b) => (b.length * b.width) - (a.length * a.width));
 
 plywoodPieces.forEach(piece => {
   let placed = false;
+
+  // Try to fit piece on existing sheets
   for (let sheet of sheets) {
-    if (sheet.usedWidth + piece.width <= 48) {
-      sheet.usedWidth += piece.width;
-      sheet.totalLength += piece.length;
+    // Try original orientation
+    if (sheet.remainingLength >= piece.length && sheet.remainingWidth >= piece.width) {
+      sheet.pieces.push({...piece, orientation: 'original'});
+      sheet.remainingLength -= piece.length;
+      placed = true;
+      break;
+    }
+    // Try rotated orientation (length becomes width, width becomes length)
+    if (sheet.remainingLength >= piece.width && sheet.remainingWidth >= piece.length) {
+      sheet.pieces.push({...piece, orientation: 'rotated'});
+      sheet.remainingLength -= piece.width;
       placed = true;
       break;
     }
   }
+
+  // If piece doesn't fit on any existing sheet, create new sheet
   if (!placed) {
-    sheets.push({
-      usedWidth: piece.width,
-      totalLength: piece.length
-    });
+    // Check if piece fits on a standard 96" × 48" sheet
+    if (piece.length <= 96 && piece.width <= 48) {
+      sheets.push({
+        maxLength: 96,
+        maxWidth: 48,
+        remainingLength: 96 - piece.length,
+        remainingWidth: 48,
+        pieces: [{...piece, orientation: 'original'}]
+      });
+    } else if (piece.width <= 96 && piece.length <= 48) {
+      // Try rotated if doesn't fit normally
+      sheets.push({
+        maxLength: 96,
+        maxWidth: 48,
+        remainingLength: 96 - piece.width,
+        remainingWidth: 48,
+        pieces: [{...piece, orientation: 'rotated'}]
+      });
+    } else {
+      // Piece is too large for standard sheet - needs custom handling
+      sheets.push({
+        maxLength: Math.max(96, piece.length),
+        maxWidth: Math.max(48, piece.width),
+        remainingLength: 0,
+        remainingWidth: 0,
+        pieces: [{...piece, orientation: 'oversized'}]
+      });
+    }
   }
 });
 
@@ -428,12 +467,11 @@ let plywoodSheets = sheets.length;
 const plywoodLeftovers = [];
 
 sheets.forEach((sheet, idx) => {
-  const leftoverLength = 96 - sheet.totalLength;
-  if (leftoverLength > 0) {
+  if (sheet.remainingLength > 0) {
     plywoodLeftovers.push({
       sheet: idx + 1,
-      size: `${leftoverLength}" × ${sheet.usedWidth}"`,
-      sqft: ((leftoverLength * sheet.usedWidth) / 144).toFixed(2)
+      size: `${sheet.remainingLength}" × ${sheet.maxWidth}"`,
+      sqft: ((sheet.remainingLength * sheet.maxWidth) / 144).toFixed(2)
     });
   }
 });
