@@ -342,8 +342,10 @@ function calculateAll() {
     }
   }
 
-  // Process standalone sections - try leftovers first
-  standaloneSections.forEach(section => {
+ // Process standalone sections - SORT BY SIZE FIRST (largest to smallest)
+standaloneSections.sort((a, b) => (b.length * b.width) - (a.length * a.width));
+
+standaloneSections.forEach(section => {
     let fitted = false;
 
     for (let i = 0; i < usedStones.length; i++) {
