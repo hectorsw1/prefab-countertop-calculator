@@ -296,10 +296,11 @@ const StoneCalculator = () => {
                 <select 
                   value={kitchenSinkType}
                   onChange={(e) => setKitchenSinkType(e.target.value)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
                 >
-                  <option>Free Kitchen Sink ($180)</option>
-                  <option>Premium Sink ($280)</option>
+                  <option value="No Kitchen Sink ($0)">No Kitchen Sink ($0)</option>
+                  <option value="Free Kitchen Sink ($180)">Free Kitchen Sink ($180)</option>
+                  <option value="Premium Sink ($280)">Premium Sink ($280)</option>
                 </select>
               </div>
               <div>
@@ -360,19 +361,19 @@ const StoneCalculator = () => {
               <select 
                 value={newSection.type}
                 onChange={(e) => setNewSection({...newSection, type: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
+                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm text-white"
               >
-                <option>4" Backsplash</option>
-                <option>Countertop</option>
-                <option>Bartop</option>
+                <option value="4&quot; Backsplash">4" Backsplash</option>
+                <option value="Countertop">Countertop</option>
+                <option value="Bartop">Bartop</option>
               </select>
               <select 
                 value={newSection.jointStatus}
                 onChange={(e) => setNewSection({...newSection, jointStatus: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
+                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm text-white"
               >
-                <option>Standalone</option>
-                <option>Jointed</option>
+                <option value="Standalone">Standalone</option>
+                <option value="Jointed">Jointed</option>
               </select>
               <button 
                 onClick={addSection}
@@ -429,21 +430,21 @@ const StoneCalculator = () => {
                       <select 
                         value={section.type}
                         onChange={(e) => updateSection(idx, 'type', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
+                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm text-white"
                       >
-                        <option>Countertop</option>
-                        <option>Bartop</option>
-                        <option>4" Backsplash</option>
+                        <option value="Countertop">Countertop</option>
+                        <option value="Bartop">Bartop</option>
+                        <option value="4&quot; Backsplash">4" Backsplash</option>
                       </select>
                     </td>
                     <td className="p-2">
                       <select 
                         value={section.jointStatus}
                         onChange={(e) => updateSection(idx, 'jointStatus', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
+                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm text-white"
                       >
-                        <option>Standalone</option>
-                        <option>Jointed</option>
+                        <option value="Standalone">Standalone</option>
+                        <option value="Jointed">Jointed</option>
                       </select>
                     </td>
                     <td className="p-2">
