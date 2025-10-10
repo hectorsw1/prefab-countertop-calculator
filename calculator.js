@@ -263,11 +263,14 @@ const StoneCalculator = () => {
               <select 
                 value={stoneColor}
                 onChange={(e) => setStoneColor(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
               >
-                <option>Luna Grey</option>
-                <option>Carrara White</option>
-                <option>Absolute Black</option>
+                <option value="Luna Grey">Luna Grey</option>
+                <option value="Carrara White">Carrara White</option>
+                <option value="Absolute Black">Absolute Black</option>
+                <option value="Calacatta Gold">Calacatta Gold</option>
+                <option value="Emperador Brown">Emperador Brown</option>
+                <option value="Super White">Super White</option>
               </select>
             </div>
             
