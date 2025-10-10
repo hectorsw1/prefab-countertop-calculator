@@ -5,8 +5,8 @@ const StoneCalculator = () => {
   const [materialType, setMaterialType] = useState('Granite');
   const [stoneColor, setStoneColor] = useState('Luna Grey');
   const [edgeType, setEdgeType] = useState('Basic Edge ($14/sq ft)');
-  const [kitchenSinkType, setKitchenSinkType] = useState('Free Kitchen Sink ($180)');
-  const [kitchenSinkQty, setKitchenSinkQty] = useState(1);
+  const [kitchenSinkType, setKitchenSinkType] = useState('No Kitchen Sink ($0)');
+  const [kitchenSinkQty, setKitchenSinkQty] = useState(0);
   const [bathroomSinkQty, setBathroomSinkQty] = useState(0);
   const [sections, setSections] = useState([
     { name: 'sink', length: 99, width: 26, type: 'Countertop', jointStatus: 'Jointed', group: 'A' },
@@ -179,7 +179,8 @@ const StoneCalculator = () => {
     const roundedSqFt = Math.ceil(totalStoneSqFt - totalWasteSqFt);
     const edgeCost = roundedSqFt * edgePrice;
     
-    const kitchenSinkPrice = parseFloat(kitchenSinkType.match(/\$(\d+)/)[1]);
+    const kitchenSinkMatch = kitchenSinkType.match(/\$(\d+)/);
+    const kitchenSinkPrice = kitchenSinkMatch ? parseFloat(kitchenSinkMatch[1]) : 0;
     const kitchenSinkCost = kitchenSinkQty * kitchenSinkPrice;
     
     const bathroomSinkCost = bathroomSinkQty * 80;
