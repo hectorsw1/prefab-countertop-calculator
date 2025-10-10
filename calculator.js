@@ -5,8 +5,8 @@ const StoneCalculator = () => {
   const [materialType, setMaterialType] = useState('Granite');
   const [stoneColor, setStoneColor] = useState('Luna Grey');
   const [edgeType, setEdgeType] = useState('Basic Edge ($14/sq ft)');
-  const [kitchenSinkType, setKitchenSinkType] = useState('No Kitchen Sink ($0)');
-  const [kitchenSinkQty, setKitchenSinkQty] = useState(0);
+  const [kitchenSinkType, setKitchenSinkType] = useState('Free Kitchen Sink ($180)');
+  const [kitchenSinkQty, setKitchenSinkQty] = useState(1);
   const [bathroomSinkQty, setBathroomSinkQty] = useState(0);
   const [sections, setSections] = useState([
     { name: 'sink', length: 99, width: 26, type: 'Countertop', jointStatus: 'Jointed', group: 'A' },
@@ -179,8 +179,7 @@ const StoneCalculator = () => {
     const roundedSqFt = Math.ceil(totalStoneSqFt - totalWasteSqFt);
     const edgeCost = roundedSqFt * edgePrice;
     
-    const kitchenSinkMatch = kitchenSinkType.match(/\$(\d+)/);
-    const kitchenSinkPrice = kitchenSinkMatch ? parseFloat(kitchenSinkMatch[1]) : 0;
+    const kitchenSinkPrice = parseFloat(kitchenSinkType.match(/\$(\d+)/)[1]);
     const kitchenSinkCost = kitchenSinkQty * kitchenSinkPrice;
     
     const bathroomSinkCost = bathroomSinkQty * 80;
@@ -246,56 +245,42 @@ const StoneCalculator = () => {
           
           <div className="grid md:grid-cols-3 gap-4 mb-6">
             <div>
-              <label className="block text-sm mb-2 text-gray-300">Material Type</label>
+              <label className="block text-sm mb-2">Material Type</label>
               <select 
                 value={materialType}
-                onChange={(e) => {
-                  console.log('Material changed to:', e.target.value);
-                  setMaterialType(e.target.value);
-                }}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                onChange={(e) => setMaterialType(e.target.value)}
+                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
               >
-                <option value="Granite">Granite</option>
-                <option value="Marble">Marble</option>
-                <option value="Quartzite">Quartzite</option>
-                <option value="Quartz">Quartz</option>
+                <option>Granite</option>
+                <option>Marble</option>
+                <option>Quartzite</option>
+                <option>Quartz</option>
               </select>
             </div>
             
             <div>
-              <label className="block text-sm mb-2 text-gray-300">Stone Color</label>
+              <label className="block text-sm mb-2">Stone Color</label>
               <select 
-                defaultValue={stoneColor}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  console.log('STONE COLOR CHANGED:', newValue);
-                  setStoneColor(newValue);
-                }}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 border-2 border-gray-600 hover:border-emerald-500 focus:border-emerald-500 focus:outline-none cursor-pointer appearance-auto"
+                value={stoneColor}
+                onChange={(e) => setStoneColor(e.target.value)}
+                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
               >
-                <option value="Luna Grey">Luna Grey</option>
-                <option value="Carrara White">Carrara White</option>
-                <option value="Absolute Black">Absolute Black</option>
-                <option value="Calacatta Gold">Calacatta Gold</option>
-                <option value="Emperador Brown">Emperador Brown</option>
-                <option value="Super White">Super White</option>
+                <option>Luna Grey</option>
+                <option>Carrara White</option>
+                <option>Absolute Black</option>
               </select>
-              <div className="text-xs text-gray-500 mt-1">Selected: {stoneColor}</div>
             </div>
             
             <div>
-              <label className="block text-sm mb-2 text-gray-300">Edge Type</label>
+              <label className="block text-sm mb-2">Edge Type</label>
               <select 
                 value={edgeType}
-                onChange={(e) => {
-                  console.log('Edge type changed to:', e.target.value);
-                  setEdgeType(e.target.value);
-                }}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                onChange={(e) => setEdgeType(e.target.value)}
+                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
               >
-                <option value="Basic Edge ($14/sq ft)">Basic Edge ($14/sq ft)</option>
-                <option value="Beveled Edge ($18/sq ft)">Beveled Edge ($18/sq ft)</option>
-                <option value="Ogee Edge ($22/sq ft)">Ogee Edge ($22/sq ft)</option>
+                <option>Basic Edge ($14/sq ft)</option>
+                <option>Beveled Edge ($18/sq ft)</option>
+                <option>Ogee Edge ($22/sq ft)</option>
               </select>
             </div>
           </div>
@@ -308,11 +293,10 @@ const StoneCalculator = () => {
                 <select 
                   value={kitchenSinkType}
                   onChange={(e) => setKitchenSinkType(e.target.value)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
                 >
-                  <option value="No Kitchen Sink ($0)">No Kitchen Sink ($0)</option>
-                  <option value="Free Kitchen Sink ($180)">Free Kitchen Sink ($180)</option>
-                  <option value="Premium Sink ($280)">Premium Sink ($280)</option>
+                  <option>Free Kitchen Sink ($180)</option>
+                  <option>Premium Sink ($280)</option>
                 </select>
               </div>
               <div>
@@ -373,19 +357,19 @@ const StoneCalculator = () => {
               <select 
                 value={newSection.type}
                 onChange={(e) => setNewSection({...newSection, type: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm text-white"
+                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
               >
-                <option value="4&quot; Backsplash">4" Backsplash</option>
-                <option value="Countertop">Countertop</option>
-                <option value="Bartop">Bartop</option>
+                <option>4" Backsplash</option>
+                <option>Countertop</option>
+                <option>Bartop</option>
               </select>
               <select 
                 value={newSection.jointStatus}
                 onChange={(e) => setNewSection({...newSection, jointStatus: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm text-white"
+                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
               >
-                <option value="Standalone">Standalone</option>
-                <option value="Jointed">Jointed</option>
+                <option>Standalone</option>
+                <option>Jointed</option>
               </select>
               <button 
                 onClick={addSection}
@@ -442,21 +426,21 @@ const StoneCalculator = () => {
                       <select 
                         value={section.type}
                         onChange={(e) => updateSection(idx, 'type', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm text-white"
+                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
                       >
-                        <option value="Countertop">Countertop</option>
-                        <option value="Bartop">Bartop</option>
-                        <option value="4&quot; Backsplash">4" Backsplash</option>
+                        <option>Countertop</option>
+                        <option>Bartop</option>
+                        <option>4" Backsplash</option>
                       </select>
                     </td>
                     <td className="p-2">
                       <select 
                         value={section.jointStatus}
                         onChange={(e) => updateSection(idx, 'jointStatus', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm text-white"
+                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
                       >
-                        <option value="Standalone">Standalone</option>
-                        <option value="Jointed">Jointed</option>
+                        <option>Standalone</option>
+                        <option>Jointed</option>
                       </select>
                     </td>
                     <td className="p-2">
