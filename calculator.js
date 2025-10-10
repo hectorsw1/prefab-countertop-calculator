@@ -1,639 +1,376 @@
-import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+let sectionCounter = 0;
+let sections = [];
+let currentResults = null;
+let stoneData = {};
 
-const StoneCalculator = () => {
-  const [materialType, setMaterialType] = useState('Granite');
-  const [stoneColor, setStoneColor] = useState('Luna Grey');
-  const [edgeType, setEdgeType] = useState('Basic Edge ($14/sq ft)');
-  const [kitchenSinkType, setKitchenSinkType] = useState('Free Kitchen Sink ($180)');
-  const [kitchenSinkQty, setKitchenSinkQty] = useState(1);
-  const [bathroomSinkQty, setBathroomSinkQty] = useState(0);
-  const [sections, setSections] = useState([
-    { name: 'sink', length: 99, width: 26, type: 'Countertop', jointStatus: 'Jointed', group: 'A' },
-    { name: 'L to sink', length: 80, width: 26, type: 'Countertop', jointStatus: 'Jointed', group: 'A' },
-    { name: 'L Stove', length: 60, width: 26, type: 'Countertop', jointStatus: 'Standalone', group: '' },
-    { name: 'R Stove', length: 37, width: 26, type: 'Countertop', jointStatus: 'Standalone', group: '' },
-    { name: 'Bar', length: 71, width: 14, type: 'Bartop', jointStatus: 'Standalone', group: '' },
-    { name: 'Section F', length: 99, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
-    { name: 'Section G', length: 24, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
-    { name: 'Section H', length: 80, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
-    { name: 'Section I', length: 24, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
-    { name: 'Section J', length: 60, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
-    { name: 'Section K', length: 37, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' }
-  ]);
-  
-  const [newSection, setNewSection] = useState({
-    name: '',
-    length: '',
-    width: '',
-    type: '4" Backsplash',
-    jointStatus: 'Standalone',
-    group: ''
+document.addEventListener('DOMContentLoaded', function() {
+  loadAllCSVs();
+  renderSectionList();
+});
+
+async function loadAllCSVs() {
+  const materials = ['Granite', 'Marble', 'Quartz', 'Quartzite'];
+  for (const material of materials) {
+    try {
+      const paths = [`./CSV/${material}_tidy.csv`, `./csv/${material}_tidy.csv`];
+      let response = null;
+      for (const p of paths) {
+        try {
+          response = await fetch(p);
+          if (response.ok) break;
+        } catch (e) {
+          response = null;
+        }
+      }
+      if (!response || !response.ok) throw new Error(`CSV not found`);
+      const csvText = await response.text();
+      stoneData[material] = parseCSV(csvText);
+    } catch (error) {
+      console.error(`Error loading ${material}:`, error);
+      stoneData[material] = [];
+    }
+  }
+}
+
+function parseCSV(csvText) {
+  if (!csvText || !csvText.trim()) return [];
+  const lines = csvText.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(',');
+    const item = {};
+    headers.forEach((header, index) => {
+      item[header] = row[index] ? row[index].trim() : '';
+    });
+    item.size_L_in = parseInt(item.size_L_in) || 0;
+    item.size_W_in = parseInt(item.size_W_in) || 0;
+    if (item.size_L_in > 0 && item.size_W_in > 0) {
+      data.push(item);
+    }
+  }
+  return data;
+}
+
+function loadStoneColors() {
+  const material = document.getElementById('material').value;
+  const stoneColorSelect = document.getElementById('stone-color');
+  stoneColorSelect.innerHTML = '<option value="">Select stone color...</option>';
+  stoneColorSelect.disabled = true;
+  if (material && stoneData[material]) {
+    const colors = [...new Set(stoneData[material].map(item => item.color))].sort();
+    colors.forEach(color => {
+      const option = document.createElement('option');
+      option.value = color;
+      option.textContent = color;
+      stoneColorSelect.appendChild(option);
+    });
+    stoneColorSelect.disabled = false;
+  }
+}
+
+function addSection() {
+  const name = document.getElementById('quick-name').value.trim() || `Section ${String.fromCharCode(65 + sectionCounter)}`;
+  const length = parseFloat(document.getElementById('quick-length').value);
+  const width = parseFloat(document.getElementById('quick-width').value);
+  const type = document.getElementById('quick-type').value;
+  const joint = document.getElementById('quick-joint').value;
+  const jointGroup = document.getElementById('quick-joint-group').value.trim();
+  if (!length || !width || length <= 0 || width <= 0) {
+    alert('Please enter valid positive numbers for length and width');
+    return;
+  }
+  sectionCounter++;
+  sections.push({id: `section-${sectionCounter}`, name, length, width, type, joint, jointGroup});
+  renderSectionList();
+  document.getElementById('quick-name').value = '';
+  document.getElementById('quick-length').value = '';
+  document.getElementById('quick-width').value = '';
+  document.getElementById('quick-joint-group').value = '';
+}
+
+function removeSection(sectionId) {
+  sections = sections.filter(s => s.id !== sectionId);
+  renderSectionList();
+}
+
+function renderSectionList() {
+  const container = document.getElementById('sections-list');
+  let html = `<div class="section-item" style="font-weight:600;background:var(--bg-card)"><div>Section Name</div><div>Length (in)</div><div>Width (in)</div><div>Type</div><div>Joint Status</div><div>Joint Group</div><div>Remove</div></div>`;
+  const displaySections = [...sections];
+  while (displaySections.length < 10) displaySections.push({id: `empty-${displaySections.length}`, empty: true});
+  displaySections.forEach(section => {
+    if (section.empty) {
+      html += `<div class="section-item" style="opacity:0.3"><input type="text" placeholder="Empty slot" disabled><input type="number" placeholder="-" disabled><input type="number" placeholder="-" disabled><select disabled><option>-</option></select><select disabled><option>-</option></select><input type="text" placeholder="-" disabled><button class="remove-btn" disabled>×</button></div>`;
+    } else {
+      html += `<div class="section-item"><input type="text" value="${section.name}" onchange="updateSectionName('${section.id}',this.value)"><input type="number" value="${section.length}" min="1" step="0.1" onchange="updateSectionValue('${section.id}','length',this.value)"><input type="number" value="${section.width}" min="1" step="0.1" onchange="updateSectionValue('${section.id}','width',this.value)"><select onchange="updateSectionValue('${section.id}','type',this.value)"><option value="countertop" ${section.type==='countertop'?'selected':''}>Countertop</option><option value="island" ${section.type==='island'?'selected':''}>Island</option><option value="bartop" ${section.type==='bartop'?'selected':''}>Bartop</option><option value="backsplash-4" ${section.type==='backsplash-4'?'selected':''}>4" Backsplash</option><option value="backsplash-full" ${section.type==='backsplash-full'?'selected':''}>Full Backsplash</option></select><select onchange="updateSectionValue('${section.id}','joint',this.value)"><option value="standalone" ${section.joint==='standalone'?'selected':''}>Standalone</option><option value="jointed" ${section.joint==='jointed'?'selected':''}>Jointed</option></select><input type="text" value="${section.jointGroup||''}" placeholder="Group" onchange="updateSectionValue('${section.id}','jointGroup',this.value)"><button class="remove-btn" onclick="removeSection('${section.id}')">×</button></div>`;
+    }
   });
+  container.innerHTML = html;
+}
 
-  const [calculatedResults, setCalculatedResults] = useState(null);
-  const [customerSinks, setCustomerSinks] = useState(0);
-  const [oversizeFee, setOversizeFee] = useState(0);
-  const [addedFab, setAddedFab] = useState(0);
+function updateSectionName(sectionId, newName) {
+  const section = sections.find(s => s.id === sectionId);
+  if (section) section.name = newName;
+}
 
-  const availableStones = [
-    { length: 108, width: 26 },
-    { length: 108, width: 14 },
-    { length: 108, width: 4 },
-    { length: 96, width: 26 },
-    { length: 96, width: 14 }
-  ];
+function updateSectionValue(sectionId, property, value) {
+  const section = sections.find(s => s.id === sectionId);
+  if (section) {
+    if (property === 'length' || property === 'width') {
+      section[property] = parseFloat(value) || 0;
+    } else {
+      section[property] = value;
+    }
+  }
+}
 
-  const optimizeStoneLayout = (sections, materialType) => {
-    const isNaturalStone = ['Granite', 'Marble', 'Quartzite'].includes(materialType);
-    const stonesUsed = [];
-    
-    const groups = {};
-    const standalone = [];
-    
-    sections.forEach(section => {
-      if (isNaturalStone && section.jointStatus === 'Jointed' && section.group) {
-        if (!groups[section.group]) {
-          groups[section.group] = [];
-        }
-        groups[section.group].push(section);
-      } else {
-        standalone.push(section);
-      }
-    });
-    
-    Object.keys(groups).forEach(groupKey => {
-      const groupSections = groups[groupKey];
-      const width = groupSections[0].width;
-      const totalLength = groupSections.reduce((sum, s) => sum + s.length, 0);
-      
-      const suitableStones = availableStones
-        .filter(stone => stone.width === width)
-        .sort((a, b) => b.length - a.length);
-      
-      if (suitableStones.length > 0) {
-        const stoneSize = suitableStones[0];
-        const numStones = Math.ceil(totalLength / stoneSize.length);
-        
-        let remainingLength = totalLength;
-        for (let i = 0; i < numStones; i++) {
-          const usedLength = Math.min(stoneSize.length, remainingLength);
-          const leftoverLength = stoneSize.length - usedLength;
-          
-          stonesUsed.push({
-            size: `${stoneSize.length}×${stoneSize.width}`,
-            usedFor: groupSections.map(s => s.name).join(', '),
-            leftover: `${leftoverLength}×${stoneSize.width}`,
-            leftoverSqFt: (leftoverLength * stoneSize.width) / 144
-          });
-          
-          remainingLength -= usedLength;
-        }
-      }
-    });
-    
-    const byWidth = {};
-    standalone.forEach(section => {
-      if (!byWidth[section.width]) {
-        byWidth[section.width] = [];
-      }
-      byWidth[section.width].push(section);
-    });
-    
-    Object.keys(byWidth).sort((a, b) => b - a).forEach(width => {
-      const sectionsAtWidth = byWidth[width].sort((a, b) => b.length - a.length);
-      
-      const suitableStones = availableStones
-        .filter(stone => stone.width === parseInt(width))
-        .sort((a, b) => b.length - a.length);
-      
-      if (suitableStones.length === 0) return;
-      
-      const stoneSize = suitableStones[0];
-      
-      while (sectionsAtWidth.length > 0) {
-        let currentLength = 0;
-        const packedSections = [];
-        
-        for (let i = 0; i < sectionsAtWidth.length; i++) {
-          if (currentLength + sectionsAtWidth[i].length <= stoneSize.length) {
-            currentLength += sectionsAtWidth[i].length;
-            packedSections.push(sectionsAtWidth[i].name);
-            sectionsAtWidth.splice(i, 1);
-            i--;
+function findBestStone(availableStones, needLength, needWidth) {
+  const fittingStones = availableStones.filter(stone => 
+    (stone.size_L_in >= needLength && stone.size_W_in >= needWidth) ||
+    (stone.size_L_in >= needWidth && stone.size_W_in >= needLength)
+  );
+  if (fittingStones.length === 0) return {found: false, message: `No stone available for ${needLength}" × ${needWidth}"`};
+  fittingStones.sort((a, b) => {
+    const wasteA = (a.size_L_in * a.size_W_in) - (needLength * needWidth);
+    const wasteB = (b.size_L_in * b.size_W_in) - (needLength * needWidth);
+    if (wasteA !== wasteB) return wasteA - wasteB;
+    return (a.size_L_in * a.size_W_in) - (b.size_L_in * b.size_W_in);
+  });
+  return {found: true, stone: fittingStones[0]};
+}
+
+function findBestStoneWithDepth(availableStones, needLength, needWidth, requiredDepth) {
+  const fittingStones = availableStones.filter(stone => 
+    stone.size_W_in === requiredDepth && stone.size_L_in >= needLength
+  );
+  if (fittingStones.length === 0) return {found: false, message: `No ${requiredDepth}" depth stone available`};
+  fittingStones.sort((a, b) => (a.size_L_in - needLength) - (b.size_L_in - needLength));
+  return {found: true, stone: fittingStones[0]};
+}
+
+function calculateAll() {
+  const material = document.getElementById('material').value;
+  const stoneColor = document.getElementById('stone-color').value;
+  const edgeType = document.getElementById('edge-type').value;
+  const kitchenSinkType = document.getElementById('kitchen-sink-type').value;
+  const kitchenSinkQty = parseInt(document.getElementById('kitchen-sink-qty').value) || 0;
+  const bathroomSinkQty = parseInt(document.getElementById('bathroom-sink-qty').value) || 0;
+  if (!material || !stoneColor || !edgeType) {alert('Please select material, stone color, and edge type');return;}
+  if (sections.length === 0) {alert('Please add at least one section');return;}
+  const availableStones = stoneData[material] ? stoneData[material].filter(stone => stone.color === stoneColor) : [];
+  if (availableStones.length === 0) {alert(`No stone pieces available for ${material} - ${stoneColor}`);return;}
+  const isNaturalStone = ['Granite','Marble','Quartzite'].includes(material);
+  const jointGroups = {};
+  const standaloneSections = [];
+  sections.forEach(section => {
+    if (section.joint === 'jointed' && section.jointGroup) {
+      if (!jointGroups[section.jointGroup]) jointGroups[section.jointGroup] = [];
+      jointGroups[section.jointGroup].push(section);
+    } else standaloneSections.push(section);
+  });
+  const usedStones = [];
+  let totalInputSqFt = 0;
+  const plywoodPieces = [];
+  for (const [groupName, groupSections] of Object.entries(jointGroups)) {
+    if (isNaturalStone) {
+      const maxLength = Math.max(...groupSections.map(s => s.length));
+      const maxWidth = Math.max(...groupSections.map(s => s.width));
+      const bestStone = findBestStone(availableStones, maxLength, maxWidth);
+      if (!bestStone.found) {alert(`Joint Group "${groupName}": ${bestStone.message}`);continue;}
+      const requiredDepth = bestStone.stone.size_W_in;
+      const totalLengthNeeded = groupSections.reduce((sum, s) => sum + s.length, 0);
+      if (totalLengthNeeded <= bestStone.stone.size_L_in) {
+        const stoneObj = {stone: bestStone.stone, usedFor: groupSections.map(s => s.name), remainingLength: bestStone.stone.size_L_in - totalLengthNeeded, remainingWidth: requiredDepth};
+        usedStones.push(stoneObj);
+        groupSections.forEach(section => {
+          totalInputSqFt += (section.length * section.width) / 144;
+          if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+            plywoodPieces.push({name: section.name, length: Math.max(1, section.length - 2), width: Math.max(1, section.width - 3)});
           }
-        }
-        
-        const leftoverLength = stoneSize.length - currentLength;
-        
-        stonesUsed.push({
-          size: `${stoneSize.length}×${stoneSize.width}`,
-          usedFor: packedSections.join(', '),
-          leftover: `${leftoverLength}×${stoneSize.width}`,
-          leftoverSqFt: (leftoverLength * stoneSize.width) / 144
+        });
+      } else {
+        groupSections.forEach(section => {
+          const stone = findBestStoneWithDepth(availableStones, section.length, section.width, requiredDepth);
+          if (!stone.found) {alert(`${section.name}: ${stone.message}`);return;}
+          const stoneObj = {stone: stone.stone, usedFor: [section.name], remainingLength: stone.stone.size_L_in - section.length, remainingWidth: requiredDepth};
+          usedStones.push(stoneObj);
+          totalInputSqFt += (section.length * section.width) / 144;
+          if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+            plywoodPieces.push({name: section.name, length: Math.max(1, section.length - 2), width: Math.max(1, section.width - 3)});
+          }
         });
       }
-    });
-    
-    return stonesUsed;
-  };
-
-  const calculatePlywoodSheets = (sections) => {
-    const needsPlywood = sections.filter(s => 
-      s.type === 'Countertop' || s.type === 'Bartop'
-    );
-    
-    const totalSqFt = needsPlywood.reduce((sum, s) => 
-      sum + (s.length * s.width) / 144, 0
-    );
-    
-    const sheetCapacity = (96 * 48) / 144;
-    const sheetsNeeded = Math.ceil(totalSqFt / sheetCapacity);
-    
-    return {
-      count: sheetsNeeded,
-      totalSqFt: totalSqFt,
-      cost: sheetsNeeded * 70
-    };
-  };
-
-  const calculateResults = () => {
-    const stoneOptimization = optimizeStoneLayout(sections, materialType);
-    const plywoodCalc = calculatePlywoodSheets(sections);
-    
-    const stoneCounts = {};
-    stoneOptimization.forEach(stone => {
-      stoneCounts[stone.size] = (stoneCounts[stone.size] || 0) + 1;
-    });
-    
-    const totalStoneSqFt = stoneOptimization.reduce((sum, stone) => {
-      const [length, width] = stone.size.split('×').map(Number);
-      return sum + (length * width) / 144;
-    }, 0);
-    
-    const totalWasteSqFt = stoneOptimization.reduce((sum, stone) => 
-      sum + stone.leftoverSqFt, 0
-    );
-    
-    const edgePrice = parseFloat(edgeType.match(/\$(\d+)/)[1]);
-    const roundedSqFt = Math.ceil(totalStoneSqFt - totalWasteSqFt);
-    const edgeCost = roundedSqFt * edgePrice;
-    
-    const kitchenSinkPrice = parseFloat(kitchenSinkType.match(/\$(\d+)/)[1]);
-    const kitchenSinkCost = kitchenSinkQty * kitchenSinkPrice;
-    
-    const bathroomSinkCost = bathroomSinkQty * 80;
-    
-    const subtotal = edgeCost + kitchenSinkCost + bathroomSinkCost + plywoodCalc.cost;
-    
-    const adjustments = parseFloat(customerSinks) + parseFloat(oversizeFee) + parseFloat(addedFab);
-    const projectTotal = subtotal + adjustments;
-    
-    setCalculatedResults({
-      stoneOptimization,
-      stoneCounts,
-      totalStoneSqFt,
-      totalWasteSqFt,
-      roundedSqFt,
-      edgeCost,
-      kitchenSinkCost,
-      bathroomSinkCost,
-      plywoodCalc,
-      subtotal,
-      adjustments,
-      projectTotal
-    });
-  };
-
-  const addSection = () => {
-    if (newSection.name && newSection.length && newSection.width) {
-      setSections([...sections, {
-        ...newSection,
-        length: parseFloat(newSection.length),
-        width: parseFloat(newSection.width)
-      }]);
-      setNewSection({
-        name: '',
-        length: '',
-        width: '',
-        type: '4" Backsplash',
-        jointStatus: 'Standalone',
-        group: ''
+    } else {
+      groupSections.forEach(section => {
+        const stone = findBestStone(availableStones, section.length, section.width);
+        if (!stone.found) {alert(`${section.name}: ${stone.message}`);return;}
+        const stoneObj = {stone: stone.stone, usedFor: [section.name], remainingLength: stone.stone.size_L_in - section.length, remainingWidth: stone.stone.size_W_in};
+        usedStones.push(stoneObj);
+        totalInputSqFt += (section.length * section.width) / 144;
+        if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+          plywoodPieces.push({name: section.name, length: Math.max(1, section.length - 2), width: Math.max(1, section.width - 3)});
+        }
       });
     }
-  };
+  }
+  standaloneSections.sort((a, b) => (b.length * b.width) - (a.length * a.width));
+  const widthGroups = {};
+  standaloneSections.forEach(section => {
+    const key = section.width;
+    if (!widthGroups[key]) widthGroups[key] = [];
+    widthGroups[key].push(section);
+  });
+  for (const [width, widthSections] of Object.entries(widthGroups)) {
+    let currentStone = null;
+    widthSections.forEach(section => {
+      let fitted = false;
+      if (currentStone && (currentStone.remainingLength >= section.length && currentStone.remainingWidth >= section.width)) {
+        currentStone.usedFor.push(section.name);
+        currentStone.remainingLength -= section.length;
+        totalInputSqFt += (section.length * section.width) / 144;
+        if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+          plywoodPieces.push({name: section.name, length: Math.max(1, section.length - 2), width: Math.max(1, section.width - 3)});
+        }
+        fitted = true;
+      }
+      if (!fitted) {
+        for (let i = 0; i < usedStones.length; i++) {
+          const stoneObj = usedStones[i];
+          if (stoneObj.remainingLength >= section.length && stoneObj.remainingWidth >= section.width) {
+            stoneObj.usedFor.push(section.name);
+            stoneObj.remainingLength -= section.length;
+            totalInputSqFt += (section.length * section.width) / 144;
+            if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+              plywoodPieces.push({name: section.name, length: Math.max(1, section.length - 2), width: Math.max(1, section.width - 3)});
+            }
+            fitted = true;
+            break;
+          }
+        }
+      }
+      if (!fitted) {
+        const stone = findBestStone(availableStones, section.length, section.width);
+        if (!stone.found) {alert(`${section.name}: ${stone.message}`);return;}
+        const stoneObj = {stone: stone.stone, usedFor: [section.name], remainingLength: stone.stone.size_L_in - section.length, remainingWidth: stone.stone.size_W_in};
+        usedStones.push(stoneObj);
+        currentStone = stoneObj;
+        totalInputSqFt += (section.length * section.width) / 144;
+        if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+          plywoodPieces.push({name: section.name, length: Math.max(1, section.length - 2), width: Math.max(1, section.width - 3)});
+        }
+      }
+    });
+  }
+  let totalStoneSqFt = 0;
+  usedStones.forEach(stoneObj => {totalStoneSqFt += (stoneObj.stone.size_L_in * stoneObj.stone.size_W_in) / 144;});
+  plywoodPieces.sort((a, b) => (b.length * b.width) - (a.length * a.width));
+  const sheets = [];
+  plywoodPieces.forEach(piece => {
+    let placed = false;
+    for (let sheet of sheets) {
+      if (piece.length <= (96 - sheet.usedLength) && piece.width <= sheet.maxWidth) {
+        sheet.pieces.push(piece);
+        sheet.usedLength += piece.length;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      sheets.push({maxWidth: 48, maxLength: 96, usedLength: piece.length, pieces: [piece]});
+    }
+  });
+  let plywoodSheets = sheets.length;
+  const plywoodLeftovers = [];
+  sheets.forEach((sheet, idx) => {
+    const leftoverLength = 96 - sheet.usedLength;
+    if (leftoverLength > 0) {
+      plywoodLeftovers.push({sheet: idx + 1, size: `${leftoverLength}" × ${sheet.maxWidth}"`, sqft: ((leftoverLength * sheet.maxWidth) / 144).toFixed(2)});
+    }
+  });
+  plywoodSheets = Math.max(1, plywoodSheets);
+  const kitchenSinkPrice = kitchenSinkType === 'free-kitchen' ? 180 : kitchenSinkType === 'handmade-kitchen' ? 275 : kitchenSinkType === 'handmade-workstation' ? 320 : 0;
+  const totalKitchenSinkCost = kitchenSinkPrice * kitchenSinkQty;
+  const totalBathroomSinkCost = 80 * bathroomSinkQty;
+  const totalSinkCost = totalKitchenSinkCost + totalBathroomSinkCost;
+  const plywoodCost = plywoodSheets * 70;
+  const edgeCost = Math.ceil(totalInputSqFt) * (edgeType === 'basic' ? 14 : 16);
+  const grandTotal = edgeCost + totalSinkCost + plywoodCost;
+  const results = {material, stoneColor, edgeType, edgePrice: edgeType === 'basic' ? 14 : 16, kitchenSinkQty, bathroomSinkQty, stones: usedStones, totals: {inputSqFt: totalInputSqFt, inputSqFtRounded: Math.ceil(totalInputSqFt), stoneSqFt: totalStoneSqFt, totalWaste: totalStoneSqFt - totalInputSqFt, stonesPieces: usedStones.length, plywoodSheets, edgeCost, totalKitchenSinkCost, totalBathroomSinkCost, totalSinkCost, plywoodCost, grandTotal}, plywoodLeftovers};
+  displayResults(results);
+  displayPricingBreakdown(results);
+  currentResults = results;
+}
 
-  const removeSection = (index) => {
-    setSections(sections.filter((_, i) => i !== index));
-  };
+function displayResults(results) {
+  let html = `<div class="summary-grid"><div class="summary-item"><div class="summary-value">${results.totals.inputSqFtRounded}</div><div class="summary-label">Rounded Sq Ft for Pricing</div></div><div class="summary-item"><div class="summary-value">${results.totals.stoneSqFt.toFixed(1)}</div><div class="summary-label">Total Stone Sq Ft</div></div><div class="summary-item"><div class="summary-value">${results.totals.totalWaste.toFixed(1)}</div><div class="summary-label">Total Waste Sq Ft</div></div><div class="summary-item"><div class="summary-value">$${results.totals.grandTotal.toFixed(0)}</div><div class="summary-label">Project Total</div></div></div><div class="pieces-summary"><h3>Stone Pieces Required</h3>`;
+  const stoneSizeCounts = {};
+  results.stones.forEach(stoneObj => {
+    const size = `${stoneObj.stone.size_L_in}" × ${stoneObj.stone.size_W_in}"`;
+    stoneSizeCounts[size] = (stoneSizeCounts[size] || 0) + 1;
+  });
+  html += `<p style="color:var(--text-secondary);margin-bottom:1rem;">`;
+  const sizeEntries = Object.entries(stoneSizeCounts);
+  sizeEntries.forEach(([size, count], index) => {
+    html += `<strong>${count} × ${size}</strong>`;
+    if (index < sizeEntries.length - 1) html += `, `;
+  });
+  html += `</p>`;
+  results.stones.forEach((stoneObj, idx) => {
+    const stone = stoneObj.stone;
+    const stoneSize = `${stone.size_L_in}" × ${stone.size_W_in}"`;
+    const leftoverSize = `${stoneObj.remainingLength}" × ${stoneObj.remainingWidth}"`;
+    const leftoverSqFt = (stoneObj.remainingLength * stoneObj.remainingWidth / 144).toFixed(2);
+    html += `<div class="piece-tag" style="display:block;margin-bottom:1rem;"><div><strong>Stone ${idx + 1}:</strong> ${stoneSize}</div><div class="stone-usage"><div class="usage-item">Used for: ${stoneObj.usedFor.join(', ')}</div><div class="usage-item">Leftover: ${leftoverSize} (${leftoverSqFt} sq ft)</div></div></div>`;
+  });
+  html += `</div><div class="plywood-summary"><h3>Plywood Requirements</h3><p style="color:var(--text-secondary);margin-bottom:1rem;"><strong>${results.totals.plywoodSheets}</strong> sheets of 48" × 96" plywood @ $70/sheet = <strong>$${results.totals.plywoodCost}</strong></p><h4 style="margin-top:1rem;margin-bottom:0.5rem;">Plywood Leftovers:</h4>`;
+  if (results.plywoodLeftovers && results.plywoodLeftovers.length > 0) {
+    html += `<div class="plywood-list">`;
+    results.plywoodLeftovers.forEach(leftover => {
+      html += `<div class="plywood-tag">Sheet ${leftover.sheet}: ${leftover.size} (${leftover.sqft} sq ft)</div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<p style="color:var(--text-muted);font-size:0.9rem;">No leftover plywood</p>`;
+  }
+  html += `</div>`;
+  document.getElementById('results').innerHTML = html;
+}
 
-  const updateSection = (index, field, value) => {
-    const updated = [...sections];
-    updated[index] = { ...updated[index], [field]: value };
-    setSections(updated);
-  };
+function displayPricingBreakdown(results) {
+  const kitchenSinkInfo = results.kitchenSinkQty > 0 ? ` (${results.kitchenSinkQty}x)` : '';
+  const bathroomSinkInfo = results.bathroomSinkQty > 0 ? ` (${results.bathroomSinkQty}x)` : '';
+  let breakdown = `<div class="pricing-line"><span class="label">Edge Work (${results.totals.inputSqFtRounded} sq ft × $${results.edgePrice})</span><span class="value">${results.totals.edgeCost.toFixed(2)}</span></div>`;
+  if (results.totals.totalKitchenSinkCost > 0) {
+    breakdown += `<div class="pricing-line"><span class="label">Kitchen Sink Cutouts${kitchenSinkInfo}</span><span class="value">${results.totals.totalKitchenSinkCost.toFixed(2)}</span></div>`;
+  }
+  if (results.totals.totalBathroomSinkCost > 0) {
+    breakdown += `<div class="pricing-line"><span class="label">Bathroom Sink Cutouts${bathroomSinkInfo}</span><span class="value">${results.totals.totalBathroomSinkCost.toFixed(2)}</span></div>`;
+  }
+  breakdown += `<div class="pricing-line"><span class="label">Plywood (${results.totals.plywoodSheets} sheets)</span><span class="value">${results.totals.plywoodCost.toFixed(2)}</span></div><div class="pricing-line"><span class="label">Subtotal</span><span class="value">${results.totals.grandTotal.toFixed(2)}</span></div>`;
+  document.getElementById('pricing-breakdown').innerHTML = breakdown;
+  updateFinalTotal(results.totals.grandTotal);
+  ['customer-sink', 'oversize-fee', 'added-fabrication'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.removeEventListener('input', updateFinalTotalHandler);
+      element.addEventListener('input', updateFinalTotalHandler);
+    }
+  });
+}
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-          Stone Prefab Calculator
-        </h1>
+function updateFinalTotalHandler() {
+  if (currentResults) updateFinalTotal(currentResults.totals.grandTotal);
+}
 
-        <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-gray-700">
-          <h2 className="text-xl font-semibold mb-4">Project Configuration</h2>
-          
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <div>
-              <label className="block text-sm mb-2">Material Type</label>
-              <select 
-                value={materialType}
-                onChange={(e) => setMaterialType(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-              >
-                <option>Granite</option>
-                <option>Marble</option>
-                <option>Quartzite</option>
-                <option>Quartz</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm mb-2">Stone Color</label>
-              <select 
-                value={stoneColor}
-                onChange={(e) => setStoneColor(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-              >
-                <option>Luna Grey</option>
-                <option>Carrara White</option>
-                <option>Absolute Black</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm mb-2">Edge Type</label>
-              <select 
-                value={edgeType}
-                onChange={(e) => setEdgeType(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-              >
-                <option>Basic Edge ($14/sq ft)</option>
-                <option>Beveled Edge ($18/sq ft)</option>
-                <option>Ogee Edge ($22/sq ft)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="border border-blue-500/30 rounded-lg p-4">
-              <h3 className="text-blue-400 font-semibold mb-3">Kitchen Sinks</h3>
-              <div className="mb-3">
-                <label className="block text-sm mb-2">Kitchen Sink Type</label>
-                <select 
-                  value={kitchenSinkType}
-                  onChange={(e) => setKitchenSinkType(e.target.value)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-                >
-                  <option>Free Kitchen Sink ($180)</option>
-                  <option>Premium Sink ($280)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm mb-2">Kitchen Sink Quantity</label>
-                <input 
-                  type="number"
-                  value={kitchenSinkQty}
-                  onChange={(e) => setKitchenSinkQty(parseInt(e.target.value) || 0)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-                />
-              </div>
-            </div>
-
-            <div className="border border-purple-500/30 rounded-lg p-4">
-              <h3 className="text-purple-400 font-semibold mb-3">Bathroom Sinks</h3>
-              <div>
-                <label className="block text-sm mb-2">Bathroom Sink Quantity</label>
-                <input 
-                  type="number"
-                  value={bathroomSinkQty}
-                  onChange={(e) => setBathroomSinkQty(parseInt(e.target.value) || 0)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-                />
-                <p className="text-xs text-gray-400 mt-1">$80 per bathroom sink</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-gray-700">
-          <h2 className="text-xl font-semibold mb-4">Project Sections</h2>
-          
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
-            <h3 className="text-blue-400 font-semibold mb-3 flex items-center gap-2">
-              <Plus size={20} /> Quick Add Section
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-              <input 
-                placeholder="Section name"
-                value={newSection.name}
-                onChange={(e) => setNewSection({...newSection, name: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
-              />
-              <input 
-                placeholder="Length"
-                type="number"
-                value={newSection.length}
-                onChange={(e) => setNewSection({...newSection, length: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
-              />
-              <input 
-                placeholder="Width"
-                type="number"
-                value={newSection.width}
-                onChange={(e) => setNewSection({...newSection, width: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
-              />
-              <select 
-                value={newSection.type}
-                onChange={(e) => setNewSection({...newSection, type: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
-              >
-                <option>4" Backsplash</option>
-                <option>Countertop</option>
-                <option>Bartop</option>
-              </select>
-              <select 
-                value={newSection.jointStatus}
-                onChange={(e) => setNewSection({...newSection, jointStatus: e.target.value})}
-                className="bg-gray-700 rounded px-3 py-2 border border-gray-600 text-sm"
-              >
-                <option>Standalone</option>
-                <option>Jointed</option>
-              </select>
-              <button 
-                onClick={addSection}
-                className="bg-emerald-600 hover:bg-emerald-700 rounded px-4 py-2 font-semibold transition"
-              >
-                + Add
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
-              Jointed = Sections seamed together (use same group name like A, B, C)
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="text-left p-2">Section Name</th>
-                  <th className="text-left p-2">Length (in)</th>
-                  <th className="text-left p-2">Width (in)</th>
-                  <th className="text-left p-2">Type</th>
-                  <th className="text-left p-2">Joint Status</th>
-                  <th className="text-left p-2">Joint Group</th>
-                  <th className="text-left p-2">Remove</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sections.map((section, idx) => (
-                  <tr key={idx} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                    <td className="p-2">
-                      <input 
-                        value={section.name}
-                        onChange={(e) => updateSection(idx, 'name', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input 
-                        type="number"
-                        value={section.length}
-                        onChange={(e) => updateSection(idx, 'length', parseFloat(e.target.value))}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input 
-                        type="number"
-                        value={section.width}
-                        onChange={(e) => updateSection(idx, 'width', parseFloat(e.target.value))}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <select 
-                        value={section.type}
-                        onChange={(e) => updateSection(idx, 'type', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
-                      >
-                        <option>Countertop</option>
-                        <option>Bartop</option>
-                        <option>4" Backsplash</option>
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <select 
-                        value={section.jointStatus}
-                        onChange={(e) => updateSection(idx, 'jointStatus', e.target.value)}
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
-                      >
-                        <option>Standalone</option>
-                        <option>Jointed</option>
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <input 
-                        value={section.group}
-                        onChange={(e) => updateSection(idx, 'group', e.target.value)}
-                        placeholder="A, B, C..."
-                        className="bg-gray-700 rounded px-2 py-1 w-full text-sm"
-                        disabled={section.jointStatus !== 'Jointed'}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <button 
-                        onClick={() => removeSection(idx)}
-                        className="bg-red-600 hover:bg-red-700 rounded p-1 transition"
-                      >
-                        <X size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="text-center mb-6">
-          <button 
-            onClick={calculateResults}
-            className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 text-white font-bold py-4 px-12 rounded-xl text-lg shadow-lg transition"
-          >
-            Calculate Stone Requirements
-          </button>
-        </div>
-
-        {calculatedResults && (
-          <>
-            <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-gray-700">
-              <h2 className="text-xl font-semibold mb-4">Total Project Calculator</h2>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between items-center py-2 border-b border-gray-700">
-                  <span>Edge Work ({calculatedResults.roundedSqFt} sq ft × ${edgeType.match(/\$(\d+)/)[1]})</span>
-                  <span className="font-semibold">${calculatedResults.edgeCost.toFixed(2)}</span>
-                </div>
-                
-                {calculatedResults.kitchenSinkCost > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-700">
-                    <span>Kitchen Sink Cutouts ({kitchenSinkQty}x)</span>
-                    <span className="font-semibold">${calculatedResults.kitchenSinkCost.toFixed(2)}</span>
-                  </div>
-                )}
-                
-                {calculatedResults.bathroomSinkCost > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-700">
-                    <span>Bathroom Sink Cutouts ({bathroomSinkQty}x)</span>
-                    <span className="font-semibold">${calculatedResults.bathroomSinkCost.toFixed(2)}</span>
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-center py-2 border-b border-gray-700">
-                  <span>Plywood ({calculatedResults.plywoodCalc.count} sheets)</span>
-                  <span className="font-semibold">${calculatedResults.plywoodCalc.cost.toFixed(2)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center py-3 font-semibold text-lg">
-                  <span>Subtotal</span>
-                  <span>${calculatedResults.subtotal.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="bg-gray-700/50 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold mb-3">Manual Adjustments</h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm mb-2">Customer Supplied Sink(s)</label>
-                    <input 
-                      type="number"
-                      value={customerSinks}
-                      onChange={(e) => setCustomerSinks(e.target.value)}
-                      className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm mb-2">Oversize Piece Fee</label>
-                    <input 
-                      type="number"
-                      value={oversizeFee}
-                      onChange={(e) => setOversizeFee(e.target.value)}
-                      className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm mb-2">Added Fabrication</label>
-                    <input 
-                      type="number"
-                      value={addedFab}
-                      onChange={(e) => setAddedFab(e.target.value)}
-                      className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border-2 border-emerald-500 rounded-xl p-6 text-center">
-                <div className="text-lg mb-2">Project Total:</div>
-                <div className="text-5xl font-bold text-emerald-400">
-                  ${calculatedResults.projectTotal.toFixed(2)}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-gray-700">
-              <h2 className="text-xl font-semibold mb-4">Project Details</h2>
-              
-              <div className="grid md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-blue-400">{calculatedResults.roundedSqFt}</div>
-                  <div className="text-sm text-gray-300 mt-1">Rounded Sq Ft for Pricing</div>
-                </div>
-                <div className="bg-purple-600/20 border border-purple-500 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-purple-400">{calculatedResults.totalStoneSqFt.toFixed(1)}</div>
-                  <div className="text-sm text-gray-300 mt-1">Total Stone Sq Ft</div>
-                </div>
-                <div className="bg-orange-600/20 border border-orange-500 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-orange-400">{calculatedResults.totalWasteSqFt.toFixed(1)}</div>
-                  <div className="text-sm text-gray-300 mt-1">Total Waste Sq Ft</div>
-                </div>
-                <div className="bg-emerald-600/20 border border-emerald-500 rounded-lg p-4 text-center">
-                  <div className="text-3xl font-bold text-emerald-400">${calculatedResults.projectTotal.toFixed(0)}</div>
-                  <div className="text-sm text-gray-300 mt-1">Project Total</div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="font-semibold text-lg mb-3 text-emerald-400">Stone Pieces Required</h3>
-                <div className="bg-gray-900/50 rounded-lg p-4">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <div className="text-sm text-gray-400 mb-2">Suggested Pieces:</div>
-                      <div className="space-y-1">
-                        {Object.keys(calculatedResults.stoneCounts).map((size, idx) => (
-                          <div key={idx} className="text-lg">
-                            {calculatedResults.stoneCounts[size]}× {size}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm text-gray-400 mb-2">Leftovers:</div>
-                      <div className="space-y-1">
-                        {calculatedResults.stoneOptimization.map((stone, idx) => (
-                          <div key={idx} className="text-lg">
-                            {stone.leftover}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-gray-700">
-                    {calculatedResults.stoneOptimization.map((stone, idx) => (
-                      <div key={idx} className="bg-gray-800 rounded-lg p-3 mb-2">
-                        <div className="font-semibold text-blue-400">Stone {idx + 1}: {stone.size}</div>
-                        <div className="text-sm text-gray-300 mt-1">Used for: {stone.usedFor}</div>
-                        <div className="text-sm text-gray-400">Leftover: {stone.leftover} ({stone.leftoverSqFt.toFixed(2)} sq ft)</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-lg mb-3 text-purple-400">Plywood Requirements</h3>
-                <div className="bg-gray-900/50 rounded-lg p-4">
-                  <div className="text-lg">
-                    {calculatedResults.plywoodCalc.count} sheets of 48" × 96" plywood @ $70/sheet = ${calculatedResults.plywoodCalc.cost}
-                  </div>
-                  <div className="text-sm text-gray-400 mt-2">
-                    Total plywood area needed: {calculatedResults.plywoodCalc.totalSqFt.toFixed(2)} sq ft
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default StoneCalculator;
+function updateFinalTotal(baseTotal) {
+  const customerSink = parseFloat(document.getElementById('customer-sink').value) || 0;
+  const oversizeFee = parseFloat(document.getElementById('oversize-fee').value) || 0;
+  const addedFabrication = parseFloat(document.getElementById('added-fabrication').value) || 0;
+  const finalTotal = baseTotal + customerSink + oversizeFee + addedFabrication;
+  const finalTotalElement = document.getElementById('final-total');
+  if (finalTotalElement) {
+    finalTotalElement.textContent = `$${finalTotal.toFixed(2)}`;
+  }
+}
