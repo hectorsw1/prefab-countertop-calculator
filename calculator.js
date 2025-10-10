@@ -246,11 +246,14 @@ const StoneCalculator = () => {
           
           <div className="grid md:grid-cols-3 gap-4 mb-6">
             <div>
-              <label className="block text-sm mb-2">Material Type</label>
+              <label className="block text-sm mb-2 text-gray-300">Material Type</label>
               <select 
                 value={materialType}
-                onChange={(e) => setMaterialType(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                onChange={(e) => {
+                  console.log('Material changed to:', e.target.value);
+                  setMaterialType(e.target.value);
+                }}
+                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 focus:border-emerald-500 focus:outline-none cursor-pointer"
               >
                 <option value="Granite">Granite</option>
                 <option value="Marble">Marble</option>
@@ -260,11 +263,14 @@ const StoneCalculator = () => {
             </div>
             
             <div>
-              <label className="block text-sm mb-2">Stone Color</label>
+              <label className="block text-sm mb-2 text-gray-300">Stone Color</label>
               <select 
                 value={stoneColor}
-                onChange={(e) => setStoneColor(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                onChange={(e) => {
+                  console.log('Stone color changed to:', e.target.value);
+                  setStoneColor(e.target.value);
+                }}
+                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 focus:border-emerald-500 focus:outline-none cursor-pointer"
               >
                 <option value="Luna Grey">Luna Grey</option>
                 <option value="Carrara White">Carrara White</option>
@@ -276,11 +282,14 @@ const StoneCalculator = () => {
             </div>
             
             <div>
-              <label className="block text-sm mb-2">Edge Type</label>
+              <label className="block text-sm mb-2 text-gray-300">Edge Type</label>
               <select 
                 value={edgeType}
-                onChange={(e) => setEdgeType(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                onChange={(e) => {
+                  console.log('Edge type changed to:', e.target.value);
+                  setEdgeType(e.target.value);
+                }}
+                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 focus:border-emerald-500 focus:outline-none cursor-pointer"
               >
                 <option value="Basic Edge ($14/sq ft)">Basic Edge ($14/sq ft)</option>
                 <option value="Beveled Edge ($18/sq ft)">Beveled Edge ($18/sq ft)</option>
