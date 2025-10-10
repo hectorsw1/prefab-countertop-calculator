@@ -249,12 +249,12 @@ const StoneCalculator = () => {
               <select 
                 value={materialType}
                 onChange={(e) => setMaterialType(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
               >
-                <option>Granite</option>
-                <option>Marble</option>
-                <option>Quartzite</option>
-                <option>Quartz</option>
+                <option value="Granite">Granite</option>
+                <option value="Marble">Marble</option>
+                <option value="Quartzite">Quartzite</option>
+                <option value="Quartz">Quartz</option>
               </select>
             </div>
             
@@ -279,11 +279,11 @@ const StoneCalculator = () => {
               <select 
                 value={edgeType}
                 onChange={(e) => setEdgeType(e.target.value)}
-                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
               >
-                <option>Basic Edge ($14/sq ft)</option>
-                <option>Beveled Edge ($18/sq ft)</option>
-                <option>Ogee Edge ($22/sq ft)</option>
+                <option value="Basic Edge ($14/sq ft)">Basic Edge ($14/sq ft)</option>
+                <option value="Beveled Edge ($18/sq ft)">Beveled Edge ($18/sq ft)</option>
+                <option value="Ogee Edge ($22/sq ft)">Ogee Edge ($22/sq ft)</option>
               </select>
             </div>
           </div>
