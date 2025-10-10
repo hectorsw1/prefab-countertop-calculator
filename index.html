@@ -4,185 +4,403 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stone Prefab Calculator</title>
-  <style>
-    :root {
-      --bg-primary: #0a0a0a;
-      --bg-secondary: #111111;
-      --bg-card: #1a1a1a;
-      --bg-input: #222222;
-      --border: #333333;
-      --text-primary: #ffffff;
-      --text-secondary: #cccccc;
-      --text-muted: #888888;
-      --accent-blue: #3b82f6;
-      --accent-green: #10b981;
-      --accent-orange: #f59e0b;
-      --accent-red: #ef4444;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.5;
-    }
-    .header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 1rem 2rem; text-align: center; }
-    .header h1 { font-size: 1.8rem; font-weight: 600; }
-    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-    .config-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
-    .config-section h2 { font-size: 1.25rem; margin-bottom: 1rem; }
-    .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 500; font-size: 0.9rem; }
-    select, input { width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.75rem; color: var(--text-primary); font-size: 0.95rem; }
-    select:focus, input:focus { outline: none; border-color: var(--accent-blue); }
-    .sink-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
-    .sink-group { background: var(--bg-input); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; }
-    .sink-group h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--accent-blue); }
-    .btn { background: var(--accent-blue); color: white; border: none; border-radius: 0.5rem; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-    .btn:hover { background: #2563eb; transform: translateY(-1px); }
-    .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
-    .quick-add { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
-    .quick-add h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--accent-blue); }
-    .quick-add-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr 1fr auto; gap: 0.75rem; align-items: end; }
-    .section-list { background: var(--bg-input); border: 1px solid var(--border); border-radius: 0.5rem; max-height: 500px; overflow-y: auto; }
-    .section-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr 1fr auto; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--border); align-items: center; }
-    .section-item:last-child { border-bottom: none; }
-    .section-item:hover { background: var(--bg-card); }
-    .section-item input, .section-item select { padding: 0.4rem 0.6rem; font-size: 0.85rem; }
-    .remove-btn { background: var(--accent-red); color: white; border: none; border-radius: 0.3rem; padding: 0.3rem 0.6rem; cursor: pointer; font-size: 0.8rem; }
-    .remove-btn:hover { background: #dc2626; }
-    .calculate-section { text-align: center; margin: 2rem 0; }
-    .calculate-btn { background: var(--accent-green); font-size: 1.1rem; padding: 1rem 2rem; }
-    .total-calculator-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
-    .pricing-breakdown { background: var(--bg-input); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 2rem; }
-    .pricing-line { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
-    .pricing-line:last-child { border-bottom: none; font-weight: 600; }
-    .adjustment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-    .final-total { background: var(--bg-input); border: 2px solid var(--accent-green); border-radius: 0.75rem; padding: 1.5rem; text-align: center; }
-    .total-display { display: flex; justify-content: center; align-items: center; gap: 1rem; }
-    .total-label { font-size: 1.5rem; font-weight: 600; }
-    .total-value { font-size: 2rem; font-weight: 700; color: var(--accent-green); }
-    .results-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; box-shadow: var(--shadow); }
-    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-    .summary-item { background: var(--bg-input); padding: 1rem; border-radius: 0.5rem; text-align: center; border: 1px solid var(--border); }
-    .summary-value { font-size: 1.5rem; font-weight: 600; color: var(--accent-blue); }
-    .summary-label { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem; }
-    .pieces-summary, .plywood-summary { background: var(--bg-input); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
-    .pieces-summary h3, .plywood-summary h3 { color: var(--text-primary); margin-bottom: 1rem; font-size: 1.1rem; }
-    .plywood-list { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-    .piece-tag, .plywood-tag { background: var(--bg-card); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; }
-    .piece-tag { color: var(--accent-blue); }
-    .plywood-tag { color: var(--accent-green); }
-    .empty-state { text-align: center; color: var(--text-muted); padding: 2rem; }
-    .stone-usage { background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem; }
-    .usage-item { padding: 0.25rem 0; color: var(--text-secondary); }
-  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
-  <header class="header"><h1>Stone Prefab Calculator</h1></header>
-  <div class="container">
-    <section class="config-section">
-      <h2>Project Configuration</h2>
-      <div class="config-grid">
-        <div class="form-group">
-          <label for="material">Material Type</label>
-          <select id="material" onchange="loadStoneColors()">
-            <option value="">Select material...</option>
-            <option value="Quartz">Quartz</option>
-            <option value="Granite">Granite</option>
-            <option value="Quartzite">Quartzite</option>
-            <option value="Marble">Marble</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="stone-color">Stone Color</label>
-          <select id="stone-color" disabled><option value="">Select material first...</option></select>
-        </div>
-        <div class="form-group">
-          <label for="edge-type">Edge Type</label>
-          <select id="edge-type">
-            <option value="">Select edge type...</option>
-            <option value="basic">Basic Edge ($14/sq ft)</option>
-            <option value="mitered">Mitered Edge ($16/sq ft)</option>
-          </select>
-        </div>
-      </div>
-      <div class="sink-section">
-        <div class="sink-group">
-          <h3>Kitchen Sinks</h3>
-          <div class="form-group">
-            <label for="kitchen-sink-type">Kitchen Sink Type</label>
-            <select id="kitchen-sink-type">
-              <option value="none">No Kitchen Sink</option>
-              <option value="free-kitchen">Free Kitchen Sink ($180)</option>
-              <option value="handmade-kitchen">HandMade Kitchen Sink ($275)</option>
-              <option value="handmade-workstation">HandMade WorkStation Sink ($320)</option>
-            </select>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    function StoneCalculator() {
+      const [materialType, setMaterialType] = useState('Granite');
+      const [stoneColor, setStoneColor] = useState('Luna Grey');
+      const [edgeType, setEdgeType] = useState('Basic Edge ($14/sq ft)');
+      const [kitchenSinkType, setKitchenSinkType] = useState('No Kitchen Sink ($0)');
+      const [kitchenSinkQty, setKitchenSinkQty] = useState(0);
+      const [bathroomSinkQty, setBathroomSinkQty] = useState(0);
+      const [sections, setSections] = useState([
+        { name: 'sink', length: 99, width: 26, type: 'Countertop', jointStatus: 'Jointed', group: 'A' },
+        { name: 'L to sink', length: 80, width: 26, type: 'Countertop', jointStatus: 'Jointed', group: 'A' },
+        { name: 'L Stove', length: 60, width: 26, type: 'Countertop', jointStatus: 'Standalone', group: '' },
+        { name: 'R Stove', length: 37, width: 26, type: 'Countertop', jointStatus: 'Standalone', group: '' },
+        { name: 'Bar', length: 71, width: 14, type: 'Bartop', jointStatus: 'Standalone', group: '' },
+        { name: 'Section F', length: 99, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
+        { name: 'Section G', length: 24, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
+        { name: 'Section H', length: 80, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
+        { name: 'Section I', length: 24, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
+        { name: 'Section J', length: 60, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' },
+        { name: 'Section K', length: 37, width: 4, type: '4" Backsplash', jointStatus: 'Standalone', group: '' }
+      ]);
+      
+      const [newSection, setNewSection] = useState({
+        name: '',
+        length: '',
+        width: '',
+        type: '4" Backsplash',
+        jointStatus: 'Standalone',
+        group: ''
+      });
+
+      const [calculatedResults, setCalculatedResults] = useState(null);
+      const [customerSinks, setCustomerSinks] = useState(0);
+      const [oversizeFee, setOversizeFee] = useState(0);
+      const [addedFab, setAddedFab] = useState(0);
+
+      const availableStones = [
+        { length: 108, width: 26 },
+        { length: 108, width: 14 },
+        { length: 108, width: 4 },
+        { length: 96, width: 26 },
+        { length: 96, width: 14 }
+      ];
+
+      const optimizeStoneLayout = (sections, materialType) => {
+        const isNaturalStone = ['Granite', 'Marble', 'Quartzite'].includes(materialType);
+        const stonesUsed = [];
+        
+        const groups = {};
+        const standalone = [];
+        
+        sections.forEach(section => {
+          if (isNaturalStone && section.jointStatus === 'Jointed' && section.group) {
+            if (!groups[section.group]) {
+              groups[section.group] = [];
+            }
+            groups[section.group].push(section);
+          } else {
+            standalone.push(section);
+          }
+        });
+        
+        Object.keys(groups).forEach(groupKey => {
+          const groupSections = groups[groupKey];
+          const width = groupSections[0].width;
+          const totalLength = groupSections.reduce((sum, s) => sum + s.length, 0);
+          
+          const suitableStones = availableStones
+            .filter(stone => stone.width === width)
+            .sort((a, b) => b.length - a.length);
+          
+          if (suitableStones.length > 0) {
+            const stoneSize = suitableStones[0];
+            const numStones = Math.ceil(totalLength / stoneSize.length);
+            
+            let remainingLength = totalLength;
+            for (let i = 0; i < numStones; i++) {
+              const usedLength = Math.min(stoneSize.length, remainingLength);
+              const leftoverLength = stoneSize.length - usedLength;
+              
+              stonesUsed.push({
+                size: `${stoneSize.length}×${stoneSize.width}`,
+                usedFor: groupSections.map(s => s.name).join(', '),
+                leftover: `${leftoverLength}×${stoneSize.width}`,
+                leftoverSqFt: (leftoverLength * stoneSize.width) / 144
+              });
+              
+              remainingLength -= usedLength;
+            }
+          }
+        });
+        
+        const byWidth = {};
+        standalone.forEach(section => {
+          if (!byWidth[section.width]) {
+            byWidth[section.width] = [];
+          }
+          byWidth[section.width].push(section);
+        });
+        
+        Object.keys(byWidth).sort((a, b) => b - a).forEach(width => {
+          const sectionsAtWidth = byWidth[width].sort((a, b) => b.length - a.length);
+          
+          const suitableStones = availableStones
+            .filter(stone => stone.width === parseInt(width))
+            .sort((a, b) => b.length - a.length);
+          
+          if (suitableStones.length === 0) return;
+          
+          const stoneSize = suitableStones[0];
+          
+          while (sectionsAtWidth.length > 0) {
+            let currentLength = 0;
+            const packedSections = [];
+            
+            for (let i = 0; i < sectionsAtWidth.length; i++) {
+              if (currentLength + sectionsAtWidth[i].length <= stoneSize.length) {
+                currentLength += sectionsAtWidth[i].length;
+                packedSections.push(sectionsAtWidth[i].name);
+                sectionsAtWidth.splice(i, 1);
+                i--;
+              }
+            }
+            
+            const leftoverLength = stoneSize.length - currentLength;
+            
+            stonesUsed.push({
+              size: `${stoneSize.length}×${stoneSize.width}`,
+              usedFor: packedSections.join(', '),
+              leftover: `${leftoverLength}×${stoneSize.width}`,
+              leftoverSqFt: (leftoverLength * stoneSize.width) / 144
+            });
+          }
+        });
+        
+        return stonesUsed;
+      };
+
+      const calculatePlywoodSheets = (sections) => {
+        const needsPlywood = sections.filter(s => 
+          s.type === 'Countertop' || s.type === 'Bartop'
+        );
+        
+        const totalSqFt = needsPlywood.reduce((sum, s) => 
+          sum + (s.length * s.width) / 144, 0
+        );
+        
+        const sheetCapacity = (96 * 48) / 144;
+        const sheetsNeeded = Math.ceil(totalSqFt / sheetCapacity);
+        
+        return {
+          count: sheetsNeeded,
+          totalSqFt: totalSqFt,
+          cost: sheetsNeeded * 70
+        };
+      };
+
+      const calculateResults = () => {
+        const stoneOptimization = optimizeStoneLayout(sections, materialType);
+        const plywoodCalc = calculatePlywoodSheets(sections);
+        
+        const stoneCounts = {};
+        stoneOptimization.forEach(stone => {
+          stoneCounts[stone.size] = (stoneCounts[stone.size] || 0) + 1;
+        });
+        
+        const totalStoneSqFt = stoneOptimization.reduce((sum, stone) => {
+          const [length, width] = stone.size.split('×').map(Number);
+          return sum + (length * width) / 144;
+        }, 0);
+        
+        const totalWasteSqFt = stoneOptimization.reduce((sum, stone) => 
+          sum + stone.leftoverSqFt, 0
+        );
+        
+        const edgePrice = parseFloat(edgeType.match(/\$(\d+)/)[1]);
+        const roundedSqFt = Math.ceil(totalStoneSqFt - totalWasteSqFt);
+        const edgeCost = roundedSqFt * edgePrice;
+        
+        const kitchenSinkMatch = kitchenSinkType.match(/\$(\d+)/);
+        const kitchenSinkPrice = kitchenSinkMatch ? parseFloat(kitchenSinkMatch[1]) : 0;
+        const kitchenSinkCost = kitchenSinkQty * kitchenSinkPrice;
+        
+        const bathroomSinkCost = bathroomSinkQty * 80;
+        
+        const subtotal = edgeCost + kitchenSinkCost + bathroomSinkCost + plywoodCalc.cost;
+        
+        const adjustments = parseFloat(customerSinks) + parseFloat(oversizeFee) + parseFloat(addedFab);
+        const projectTotal = subtotal + adjustments;
+        
+        setCalculatedResults({
+          stoneOptimization,
+          stoneCounts,
+          totalStoneSqFt,
+          totalWasteSqFt,
+          roundedSqFt,
+          edgeCost,
+          kitchenSinkCost,
+          bathroomSinkCost,
+          plywoodCalc,
+          subtotal,
+          adjustments,
+          projectTotal
+        });
+      };
+
+      const addSection = () => {
+        if (newSection.name && newSection.length && newSection.width) {
+          setSections([...sections, {
+            ...newSection,
+            length: parseFloat(newSection.length),
+            width: parseFloat(newSection.width)
+          }]);
+          setNewSection({
+            name: '',
+            length: '',
+            width: '',
+            type: '4" Backsplash',
+            jointStatus: 'Standalone',
+            group: ''
+          });
+        }
+      };
+
+      const removeSection = (index) => {
+        setSections(sections.filter((_, i) => i !== index));
+      };
+
+      const updateSection = (index, field, value) => {
+        const updated = [...sections];
+        updated[index] = { ...updated[index], [field]: value };
+        setSections(updated);
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-6">
+          <div className="max-w-7xl mx-auto">
+            <h1 className="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              Stone Prefab Calculator
+            </h1>
+
+            <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-gray-700">
+              <h2 className="text-xl font-semibold mb-4">Project Configuration</h2>
+              
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm mb-2 text-gray-300">Material Type</label>
+                  <select 
+                    value={materialType}
+                    onChange={(e) => setMaterialType(e.target.value)}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                  >
+                    <option value="Granite">Granite</option>
+                    <option value="Marble">Marble</option>
+                    <option value="Quartzite">Quartzite</option>
+                    <option value="Quartz">Quartz</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm mb-2 text-gray-300">Stone Color</label>
+                  <select 
+                    value={stoneColor}
+                    onChange={(e) => setStoneColor(e.target.value)}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                  >
+                    <option value="Luna Grey">Luna Grey</option>
+                    <option value="Carrara White">Carrara White</option>
+                    <option value="Absolute Black">Absolute Black</option>
+                    <option value="Calacatta Gold">Calacatta Gold</option>
+                    <option value="Emperador Brown">Emperador Brown</option>
+                    <option value="Super White">Super White</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm mb-2 text-gray-300">Edge Type</label>
+                  <select 
+                    value={edgeType}
+                    onChange={(e) => setEdgeType(e.target.value)}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                  >
+                    <option value="Basic Edge ($14/sq ft)">Basic Edge ($14/sq ft)</option>
+                    <option value="Beveled Edge ($18/sq ft)">Beveled Edge ($18/sq ft)</option>
+                    <option value="Ogee Edge ($22/sq ft)">Ogee Edge ($22/sq ft)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="border border-blue-500/30 rounded-lg p-4">
+                  <h3 className="text-blue-400 font-semibold mb-3">Kitchen Sinks</h3>
+                  <div className="mb-3">
+                    <label className="block text-sm mb-2">Kitchen Sink Type</label>
+                    <select 
+                      value={kitchenSinkType}
+                      onChange={(e) => setKitchenSinkType(e.target.value)}
+                      className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                    >
+                      <option value="No Kitchen Sink ($0)">No Kitchen Sink ($0)</option>
+                      <option value="Free Kitchen Sink ($180)">Free Kitchen Sink ($180)</option>
+                      <option value="Premium Sink ($280)">Premium Sink ($280)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-2">Kitchen Sink Quantity</label>
+                    <input 
+                      type="number"
+                      value={kitchenSinkQty}
+                      onChange={(e) => setKitchenSinkQty(parseInt(e.target.value) || 0)}
+                      className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="border border-purple-500/30 rounded-lg p-4">
+                  <h3 className="text-purple-400 font-semibold mb-3">Bathroom Sinks</h3>
+                  <div>
+                    <label className="block text-sm mb-2">Bathroom Sink Quantity</label>
+                    <input 
+                      type="number"
+                      value={bathroomSinkQty}
+                      onChange={(e) => setBathroomSinkQty(parseInt(e.target.value) || 0)}
+                      className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600 text-white"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">$80 per bathroom sink</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center mb-6">
+              <button 
+                onClick={calculateResults}
+                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 text-white font-bold py-4 px-12 rounded-xl text-lg shadow-lg transition"
+              >
+                Calculate Stone Requirements
+              </button>
+            </div>
+
+            {calculatedResults && (
+              <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 mb-6 border border-gray-700">
+                <h2 className="text-xl font-semibold mb-4">Results</h2>
+                
+                <div className="bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border-2 border-emerald-500 rounded-xl p-6 text-center mb-6">
+                  <div className="text-lg mb-2">Project Total:</div>
+                  <div className="text-5xl font-bold text-emerald-400">
+                    ${calculatedResults.projectTotal.toFixed(2)}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="font-semibold text-lg mb-3 text-emerald-400">Stone Pieces Required</h3>
+                  <div className="bg-gray-900/50 rounded-lg p-4">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-2">Suggested Pieces:</div>
+                        <div className="space-y-1">
+                          {Object.keys(calculatedResults.stoneCounts).map((size, idx) => (
+                            <div key={idx} className="text-lg">
+                              {calculatedResults.stoneCounts[size]}× {size}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm text-gray-400 mb-2">Leftovers:</div>
+                        <div className="space-y-1">
+                          {calculatedResults.stoneOptimization.map((stone, idx) => (
+                            <div key={idx} className="text-lg">
+                              {stone.leftover}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <div class="form-group">
-            <label for="kitchen-sink-qty">Kitchen Sink Quantity</label>
-            <input type="number" id="kitchen-sink-qty" min="0" max="10" value="0">
-          </div>
         </div>
-        <div class="sink-group">
-          <h3>Bathroom Sinks</h3>
-          <div class="form-group">
-            <label for="bathroom-sink-qty">Bathroom Sink Quantity</label>
-            <input type="number" id="bathroom-sink-qty" min="0" max="10" value="0">
-          </div>
-          <div style="margin-top: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">$80 per bathroom sink</div>
-        </div>
-      </div>
-    </section>
-    <section class="sections-container">
-      <h2>Project Sections</h2>
-      <div class="quick-add">
-        <h3>Quick Add Section</h3>
-        <div class="quick-add-grid">
-          <input type="text" id="quick-name" placeholder="Section name">
-          <input type="number" id="quick-length" placeholder="Length" min="1" step="0.1">
-          <input type="number" id="quick-width" placeholder="Width" min="1" step="0.1">
-          <select id="quick-type">
-            <option value="countertop">Countertop</option>
-            <option value="island">Island</option>
-            <option value="bartop">Bartop</option>
-            <option value="backsplash-4">4" Backsplash</option>
-            <option value="backsplash-full">Full Backsplash</option>
-          </select>
-          <select id="quick-joint">
-            <option value="standalone">Standalone</option>
-            <option value="jointed">Jointed</option>
-          </select>
-          <input type="text" id="quick-joint-group" placeholder="Joint Group">
-          <button class="btn btn-small" onclick="addSection()">+ Add</button>
-        </div>
-        <div style="margin-top: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">Jointed = Sections seamed together (use same group name)</div>
-      </div>
-      <div class="section-list" id="sections-list"></div>
-    </section>
-    <section class="calculate-section">
-      <button class="btn calculate-btn" onclick="calculateAll()">Calculate Stone Requirements</button>
-    </section>
-    <section class="total-calculator-section">
-      <h2>Total Project Calculator</h2>
-      <div id="pricing-breakdown" class="pricing-breakdown"><div class="empty-state">Calculate to see pricing breakdown</div></div>
-      <div class="manual-adjustments">
-        <h3>Manual Adjustments</h3>
-        <div class="adjustment-grid">
-          <div class="form-group"><label for="customer-sink">Customer Supplied Sink(s)</label><input type="number" id="customer-sink" step="0.01" placeholder="0.00"></div>
-          <div class="form-group"><label for="oversize-fee">Oversize Piece Fee</label><input type="number" id="oversize-fee" step="0.01" placeholder="0.00"></div>
-          <div class="form-group"><label for="added-fabrication">Added Fabrication</label><input type="number" id="added-fabrication" step="0.01" placeholder="0.00"></div>
-        </div>
-        <div class="final-total"><div class="total-display"><span class="total-label">Project Total:</span><span class="total-value" id="final-total">$0.00</span></div></div>
-      </div>
-    </section>
-    <section class="results-section">
-      <h2>Project Details</h2>
-      <div id="results"><div class="empty-state">Add sections and calculate to see results</div></div>
-    </section>
-  </div>
-  <script src="calculator.js"></script>
+      );
+    }
+
+    ReactDOM.render(<StoneCalculator />, document.getElementById('root'));
+  </script>
 </body>
 </html>
