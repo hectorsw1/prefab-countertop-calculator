@@ -707,4 +707,7 @@ function updateFinalTotal(baseTotal) {
   
   const finalTotal = baseTotal + customerSink + oversizeFee + addedFabrication;
   const finalTotalElement = document.getElementById('final-total');
-  if
+  if (finalTotalElement) {
+    finalTotalElement.textContent = `$${finalTotal.toFixed(2)}`;
+  }
+}
