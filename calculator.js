@@ -182,11 +182,21 @@ function updateSectionValue(sectionId, property, value) {
   }
 }
 
-function findBestStone(availableStones, needLength, needWidth) {
-  const fittingStones = availableStones.filter(stone => 
+function findBestStone(availableStones, needLength, needWidth, preferredType = null) {
+  let fittingStones = availableStones.filter(stone => 
     (stone.size_L_in >= needLength && stone.size_W_in >= needWidth) ||
     (stone.size_L_in >= needWidth && stone.size_W_in >= needLength)
   );
+
+  // Filter by type if specified
+  if (preferredType) {
+    const typedStones = fittingStones.filter(stone => 
+      stone.type.toLowerCase() === preferredType.toLowerCase()
+    );
+    if (typedStones.length > 0) {
+      fittingStones = typedStones;
+    }
+  }
 
   if (fittingStones.length === 0) {
     return {
@@ -196,10 +206,18 @@ function findBestStone(availableStones, needLength, needWidth) {
   }
 
   fittingStones.sort((a, b) => {
-    const wasteA = (a.size_L_in * a.size_W_in) - (needLength * needWidth);
-    const wasteB = (b.size_L_in * b.size_W_in) - (needLength * needWidth);
-    if (wasteA !== wasteB) return wasteA - wasteB;
-    return (a.size_L_in * a.size_W_in) - (b.size_L_in * b.size_W_in);
+    // ALWAYS prefer larger stones - more flexibility and fewer pieces
+    const sizeA = a.size_L_in * a.size_W_in;
+    const sizeB = b.size_L_in * b.size_W_in;
+    
+    // Primary: prefer larger stones
+    if (sizeA !== sizeB) return sizeB - sizeA;
+    
+    // Secondary: prefer longer length (better for combining sections)
+    if (a.size_L_in !== b.size_L_in) return b.size_L_in - a.size_L_in;
+    
+    // Tertiary: prefer wider width
+    return b.size_W_in - a.size_W_in;
   });
 
   return { found: true, stone: fittingStones[0] };
@@ -277,8 +295,9 @@ function calculateAll() {
       // For natural stone, all jointed pieces must use same depth
       const maxLength = Math.max(...groupSections.map(s => s.length));
       const maxWidth = Math.max(...groupSections.map(s => s.width));
+      const sectionType = groupSections[0].type; // Get type from first section
       
-      const bestStone = findBestStone(availableStones, maxLength, maxWidth);
+      const bestStone = findBestStone(availableStones, maxLength, maxWidth, sectionType);
       if (!bestStone.found) {
         alert(`Joint Group "${groupName}": ${bestStone.message}`);
         continue;
@@ -344,7 +363,7 @@ function calculateAll() {
     } else {
       // Quartz - can mix sizes freely
       groupSections.forEach(section => {
-        const stone = findBestStone(availableStones, section.length, section.width);
+        const stone = findBestStone(availableStones, section.length, section.width, section.type);
         
         if (!stone.found) {
           alert(`${section.name}: ${stone.message}`);
@@ -389,98 +408,75 @@ function calculateAll() {
 
   // Process each width group
   for (const [width, widthSections] of Object.entries(widthGroups)) {
-    let currentStone = null;
-    let currentStoneUsedLength = 0;
+    // Try to combine multiple sections onto single stones
+    let remaining = [...widthSections];
+    
+    while (remaining.length > 0) {
+      const section = remaining.shift();
+      
+      // Try to find a stone that can fit this section plus more from remaining
+      let totalLength = section.length;
+      let sectionsToFit = [section];
+      
+      // Greedy: try to fit as many remaining sections as possible
+      for (let i = 0; i < remaining.length; i++) {
+        if (totalLength + remaining[i].length <= 108) { // Try to fit on largest common stone (108)
+          totalLength += remaining[i].length;
+          sectionsToFit.push(remaining[i]);
+        }
+      }
+      
+      // Remove fitted sections from remaining
+      sectionsToFit.slice(1).forEach(s => {
+        const idx = remaining.findIndex(r => r.id === s.id);
+        if (idx > -1) remaining.splice(idx, 1);
+      });
+      
+      // Get stone for all fitted sections
+      const stone = findBestStone(availableStones, totalLength, parseFloat(width), section.type);
+      
+      if (!stone.found) {
+        alert(`${section.name}: ${stone.message}`);
+        continue;
+      }
 
-    widthSections.forEach(section => {
-      let fitted = false;
+      const stoneObj = {
+        stone: stone.stone,
+        usedFor: sectionsToFit.map(s => s.name),
+        remainingLength: stone.stone.size_L_in - totalLength,
+        remainingWidth: stone.stone.size_W_in
+      };
 
-      // Try to fit on current stone in this width group
-      if (currentStone && (currentStone.remainingLength >= section.length && currentStone.remainingWidth >= section.width)) {
-        currentStone.usedFor.push(section.name);
-        currentStone.remainingLength -= section.length;
-        currentStoneUsedLength += section.length;
-        
-        totalInputSqFt += (section.length * section.width) / 144;
+      usedStones.push(stoneObj);
+      
+      sectionsToFit.forEach(s => {
+        totalInputSqFt += (s.length * s.width) / 144;
 
-        if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
+        if (s.type !== 'backsplash-4' && s.type !== 'backsplash-full') {
           plywoodPieces.push({
-            name: section.name,
-            length: Math.max(1, section.length - 2),
-            width: Math.max(1, section.width - 3)
+            name: s.name,
+            length: Math.max(1, s.length - 2),
+            width: Math.max(1, s.width - 3)
           });
         }
-
-        fitted = true;
-      }
-
-      // If not fitted on current stone, try existing leftovers from other stones
-      if (!fitted) {
-        for (let i = 0; i < usedStones.length; i++) {
-          const stoneObj = usedStones[i];
-          
-          if (stoneObj.remainingLength >= section.length && stoneObj.remainingWidth >= section.width) {
-            stoneObj.usedFor.push(section.name);
-            stoneObj.remainingLength -= section.length;
-            
-            totalInputSqFt += (section.length * section.width) / 144;
-
-            if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
-              plywoodPieces.push({
-                name: section.name,
-                length: Math.max(1, section.length - 2),
-                width: Math.max(1, section.width - 3)
-              });
-            }
-
-            fitted = true;
-            break;
-          }
-        }
-      }
-
-      // If still not fitted, get new stone
-      if (!fitted) {
-        const stone = findBestStone(availableStones, section.length, section.width);
-        
-        if (!stone.found) {
-          alert(`${section.name}: ${stone.message}`);
-          return;
-        }
-
-        const stoneObj = {
-          stone: stone.stone,
-          usedFor: [section.name],
-          remainingLength: stone.stone.size_L_in - section.length,
-          remainingWidth: stone.stone.size_W_in
-        };
-
-        usedStones.push(stoneObj);
-        currentStone = stoneObj;
-        currentStoneUsedLength = section.length;
-        
-        totalInputSqFt += (section.length * section.width) / 144;
-
-        if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
-          plywoodPieces.push({
-            name: section.name,
-            length: Math.max(1, section.length - 2),
-            width: Math.max(1, section.width - 3)
-          });
-        }
-      }
-    });
+      });
+    }
   }
 
   // Process island sections separately - they can use half-depth stones
   islandSections.forEach(section => {
-    // For islands, look for stones with half the width (e.g., 14" instead of 26")
-    const halfWidth = Math.ceil(section.width / 2);
+    // Determine the correct stone type based on section type
+    let stoneType = section.type;
+    if (section.type === 'island') {
+      stoneType = 'island';
+    } else if (section.type === 'bartop') {
+      stoneType = 'bartop';
+    }
     
-    // Try to find a half-depth stone first
-    let stone = findBestStone(availableStones, section.length, halfWidth);
+    // Try to find appropriate stone by type
+    let stone = findBestStone(availableStones, section.length, section.width, stoneType);
     
-    // If no half-depth stone available, use full depth
+    // If no stone of that type available, try without type filter
     if (!stone.found) {
       stone = findBestStone(availableStones, section.length, section.width);
     }
