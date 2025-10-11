@@ -473,32 +473,85 @@ function calculateAll() {
     totalStoneSqFt += (stoneObj.stone.size_L_in * stoneObj.stone.size_W_in) / 144;
   });
 
-  // Improved plywood packing - pack tightly
-  plywoodPieces.sort((a, b) => (b.length * b.width) - (a.length * a.width));
+  // Improved plywood packing with 2D bin packing
+  plywoodPieces.sort((a, b) => {
+    // Sort by area (largest first), then by longest dimension
+    const areaA = a.length * a.width;
+    const areaB = b.length * b.width;
+    if (areaA !== areaB) return areaB - areaA;
+    return Math.max(b.length, b.width) - Math.max(a.length, a.width);
+  });
 
   const sheets = [];
   
   plywoodPieces.forEach(piece => {
     let placed = false;
 
+    // Try both orientations of the piece
+    const orientations = [
+      { length: piece.length, width: piece.width, rotated: false },
+      { length: piece.width, width: piece.length, rotated: true }
+    ];
+
     // Try to fit on existing sheets
     for (let sheet of sheets) {
-      // Check if piece fits in remaining space
-      if (piece.length <= (96 - sheet.usedLength) && piece.width <= sheet.maxWidth) {
-        sheet.pieces.push(piece);
-        sheet.usedLength += piece.length;
-        placed = true;
-        break;
+      if (placed) break;
+
+      for (let orientation of orientations) {
+        // Try to find space in existing rows
+        let canFit = false;
+        let targetRow = -1;
+
+        for (let i = 0; i < sheet.rows.length; i++) {
+          const row = sheet.rows[i];
+          const remainingLength = 96 - row.usedLength;
+          const remainingWidth = 48 - row.rowWidth;
+
+          // Check if piece fits in current row (next to existing pieces)
+          if (orientation.length <= remainingLength && orientation.width <= row.rowWidth) {
+            row.pieces.push({...piece, orientation});
+            row.usedLength += orientation.length;
+            placed = true;
+            canFit = true;
+            break;
+          }
+          // Check if we can start a new row below
+          else if (orientation.length <= 96 && orientation.width <= remainingWidth && targetRow === -1) {
+            targetRow = i;
+          }
+        }
+
+        // If we found space for a new row, add it
+        if (!canFit && targetRow !== -1 && !placed) {
+          const totalUsedWidth = sheet.rows.reduce((sum, r) => sum + r.rowWidth, 0);
+          if (totalUsedWidth + orientation.width <= 48) {
+            sheet.rows.push({
+              pieces: [{...piece, orientation}],
+              usedLength: orientation.length,
+              rowWidth: orientation.width
+            });
+            placed = true;
+            break;
+          }
+        }
+
+        if (placed) break;
       }
     }
 
-    // If not placed, start new sheet
+    // If not placed on any existing sheet, create new sheet
     if (!placed) {
+      // Try both orientations and pick the better one (prefer longer pieces along the 96" dimension)
+      const betterOrientation = piece.length >= piece.width 
+        ? { length: piece.length, width: piece.width, rotated: false }
+        : { length: piece.width, width: piece.length, rotated: true };
+
       sheets.push({
-        maxWidth: 48,
-        maxLength: 96,
-        usedLength: piece.length,
-        pieces: [piece]
+        rows: [{
+          pieces: [{...piece, orientation: betterOrientation}],
+          usedLength: betterOrientation.length,
+          rowWidth: betterOrientation.width
+        }]
       });
     }
   });
@@ -507,12 +560,18 @@ function calculateAll() {
   const plywoodLeftovers = [];
 
   sheets.forEach((sheet, idx) => {
-    const leftoverLength = 96 - sheet.usedLength;
-    if (leftoverLength > 0) {
+    const totalUsedWidth = sheet.rows.reduce((sum, row) => sum + row.rowWidth, 0);
+    const maxUsedLength = Math.max(...sheet.rows.map(row => row.usedLength));
+    
+    const leftoverArea = (96 * 48) - sheet.rows.reduce((sum, row) => 
+      sum + (row.usedLength * row.rowWidth), 0
+    );
+    
+    if (leftoverArea > 0) {
       plywoodLeftovers.push({
         sheet: idx + 1,
-        size: `${leftoverLength}" × ${sheet.maxWidth}"`,
-        sqft: ((leftoverLength * sheet.maxWidth) / 144).toFixed(2)
+        size: `Various pieces (${totalUsedWidth}" width used of 48")`,
+        sqft: (leftoverArea / 144).toFixed(2)
       });
     }
   });
