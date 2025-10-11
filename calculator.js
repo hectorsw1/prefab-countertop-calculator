@@ -375,9 +375,13 @@ function calculateAll() {
   // Sort standalone sections by size (largest first)
   standaloneSections.sort((a, b) => (b.length * b.width) - (a.length * a.width));
 
-  // Group standalone sections by same width for potential combining
+  // Separate islands from countertops - islands can use narrower stones
+  const islandSections = standaloneSections.filter(s => s.type === 'island');
+  const countertopSections = standaloneSections.filter(s => s.type !== 'island' && s.type !== 'backsplash-4' && s.type !== 'backsplash-full');
+
+  // Group countertop sections by same width for potential combining
   const widthGroups = {};
-  standaloneSections.forEach(section => {
+  countertopSections.forEach(section => {
     const key = section.width;
     if (!widthGroups[key]) widthGroups[key] = [];
     widthGroups[key].push(section);
@@ -467,6 +471,42 @@ function calculateAll() {
       }
     });
   }
+
+  // Process island sections separately - they can use half-depth stones
+  islandSections.forEach(section => {
+    // For islands, look for stones with half the width (e.g., 14" instead of 26")
+    const halfWidth = Math.ceil(section.width / 2);
+    
+    // Try to find a half-depth stone first
+    let stone = findBestStone(availableStones, section.length, halfWidth);
+    
+    // If no half-depth stone available, use full depth
+    if (!stone.found) {
+      stone = findBestStone(availableStones, section.length, section.width);
+    }
+    
+    if (!stone.found) {
+      alert(`${section.name}: ${stone.message}`);
+      return;
+    }
+
+    const stoneObj = {
+      stone: stone.stone,
+      usedFor: [section.name],
+      remainingLength: stone.stone.size_L_in - section.length,
+      remainingWidth: stone.stone.size_W_in
+    };
+
+    usedStones.push(stoneObj);
+    totalInputSqFt += (section.length * section.width) / 144;
+
+    // Islands still need plywood
+    plywoodPieces.push({
+      name: section.name,
+      length: Math.max(1, section.length - 2),
+      width: Math.max(1, section.width - 3)
+    });
+  });
 
   let totalStoneSqFt = 0;
   usedStones.forEach(stoneObj => {
