@@ -206,18 +206,18 @@ function findBestStone(availableStones, needLength, needWidth, preferredType = n
   }
 
   fittingStones.sort((a, b) => {
-    // ALWAYS prefer larger stones - more flexibility and fewer pieces
+    // Prefer SMALLEST stone that fits - minimize waste
     const sizeA = a.size_L_in * a.size_W_in;
     const sizeB = b.size_L_in * b.size_W_in;
     
-    // Primary: prefer larger stones
-    if (sizeA !== sizeB) return sizeB - sizeA;
+    // Primary: prefer smaller stones (less waste, more economical)
+    if (sizeA !== sizeB) return sizeA - sizeB;
     
-    // Secondary: prefer longer length (better for combining sections)
-    if (a.size_L_in !== b.size_L_in) return b.size_L_in - a.size_L_in;
+    // Secondary: prefer shorter length (easier to handle)
+    if (a.size_L_in !== b.size_L_in) return a.size_L_in - b.size_L_in;
     
-    // Tertiary: prefer wider width
-    return b.size_W_in - a.size_W_in;
+    // Tertiary: prefer narrower width
+    return a.size_W_in - b.size_W_in;
   });
 
   return { found: true, stone: fittingStones[0] };
