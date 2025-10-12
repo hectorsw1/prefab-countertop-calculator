@@ -223,27 +223,6 @@ function findBestStone(availableStones, needLength, needWidth, preferredType = n
   return { found: true, stone: fittingStones[0] };
 }
 
-function findBestStoneWithDepth(availableStones, needLength, needWidth, requiredDepth) {
-  const fittingStones = availableStones.filter(stone => 
-    stone.size_W_in === requiredDepth && stone.size_L_in >= needLength
-  );
-
-  if (fittingStones.length === 0) {
-    return {
-      found: false,
-      message: `No ${requiredDepth}" depth stone available`
-    };
-  }
-
-  fittingStones.sort((a, b) => {
-    const wasteA = a.size_L_in - needLength;
-    const wasteB = b.size_L_in - needLength;
-    return wasteA - wasteB;
-  });
-
-  return { found: true, stone: fittingStones[0] };
-}
-
 function calculateAll() {
   const material = document.getElementById('material').value;
   const stoneColor = document.getElementById('stone-color').value;
@@ -671,7 +650,12 @@ function displayResults(results) {
     </div>
   `;
   
-  html += `<div class="pieces-summary"><h3>Stone Pieces Required</h3>`;
+  // Two column layout for Stone Pieces and Leftover
+  html += `
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+      <div class="pieces-summary">
+        <h3>Stone Pieces Required</h3>
+  `;
 
   const stoneSizeCounts = {};
   results.stones.forEach(stoneObj => {
@@ -679,15 +663,30 @@ function displayResults(results) {
     stoneSizeCounts[size] = (stoneSizeCounts[size] || 0) + 1;
   });
 
-  html += `<p style="color: var(--text-secondary); margin-bottom: 1rem;">`;
+  html += `<ul style="list-style: disc; padding-left: 1.5rem; margin-top: 0.5rem;">`;
   const sizeEntries = Object.entries(stoneSizeCounts);
-  sizeEntries.forEach(([size, count], index) => {
-    html += `<strong>${count} × ${size}</strong>`;
-    if (index < sizeEntries.length - 1) {
-      html += `, `;
-    }
+  sizeEntries.forEach(([size, count]) => {
+    html += `<li style="color: var(--text-secondary); margin-bottom: 0.5rem;"><strong>${count} × ${size}</strong></li>`;
   });
-  html += `</p>`;
+  html += `</ul></div>`;
+  
+  // Stone Leftover column
+  html += `
+    <div class="pieces-summary">
+      <h3>Stone Leftover</h3>
+      <ul style="list-style: disc; padding-left: 1.5rem; margin-top: 0.5rem;">
+  `;
+  
+  results.stones.forEach((stoneObj, idx) => {
+    const leftoverSize = `${stoneObj.remainingLength}" × ${stoneObj.remainingWidth}"`;
+    const leftoverSqFt = (stoneObj.remainingLength * stoneObj.remainingWidth / 144).toFixed(2);
+    html += `<li style="color: var(--text-secondary); margin-bottom: 0.5rem;">Leftover Piece: <strong>${leftoverSize}</strong> (${leftoverSqFt} sq ft)</li>`;
+  });
+  
+  html += `</ul></div></div>`;
+  
+  // Stone Usage Details section
+  html += `<div class="pieces-summary" style="margin-bottom: 1.5rem;"><h3>Stone Usage Details</h3>`;
   
   results.stones.forEach((stoneObj, idx) => {
     const stone = stoneObj.stone;
