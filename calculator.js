@@ -292,30 +292,33 @@ function calculateAll() {
   // Process jointed groups first
   for (const [groupName, groupSections] of Object.entries(jointGroups)) {
     if (isNaturalStone) {
-      // For natural stone, all jointed pieces must use same depth
-      const maxLength = Math.max(...groupSections.map(s => s.length));
-      const maxWidth = Math.max(...groupSections.map(s => s.width));
-      const sectionType = groupSections[0].type; // Get type from first section
+      // For natural stone (Granite/Marble/Quartzite), all jointed pieces must use EXACT SAME stone size
       
-      const bestStone = findBestStone(availableStones, maxLength, maxWidth, sectionType);
+      // Find the largest section in the group
+      const largestSection = groupSections.reduce((max, section) => 
+        (section.length * section.width > max.length * max.width) ? section : max
+      );
+      
+      const sectionType = groupSections[0].type;
+      
+      // Find the best stone for the largest section
+      const bestStone = findBestStone(availableStones, largestSection.length, largestSection.width, sectionType);
       if (!bestStone.found) {
         alert(`Joint Group "${groupName}": ${bestStone.message}`);
         continue;
       }
 
-      const requiredDepth = bestStone.stone.size_W_in;
-
-      // Get total length needed for all sections in group
+      // Get total length needed for all sections
       const totalLengthNeeded = groupSections.reduce((sum, s) => sum + s.length, 0);
 
-      // Try to fit all on one stone if possible
+      // Try to fit all sections on one stone
       if (totalLengthNeeded <= bestStone.stone.size_L_in) {
         // All sections fit on ONE stone
         const stoneObj = {
           stone: bestStone.stone,
           usedFor: groupSections.map(s => s.name),
           remainingLength: bestStone.stone.size_L_in - totalLengthNeeded,
-          remainingWidth: requiredDepth
+          remainingWidth: bestStone.stone.size_W_in
         };
 
         usedStones.push(stoneObj);
@@ -332,20 +335,14 @@ function calculateAll() {
           }
         });
       } else {
-        // Need separate stones for each section, but same depth
+        // Need separate stones for each section - ALL must be the SAME SIZE as bestStone
         groupSections.forEach(section => {
-          const stone = findBestStoneWithDepth(availableStones, section.length, section.width, requiredDepth);
-          
-          if (!stone.found) {
-            alert(`${section.name}: ${stone.message}`);
-            return;
-          }
-
+          // Use the EXACT same stone size for all jointed pieces
           const stoneObj = {
-            stone: stone.stone,
+            stone: bestStone.stone,
             usedFor: [section.name],
-            remainingLength: stone.stone.size_L_in - section.length,
-            remainingWidth: requiredDepth
+            remainingLength: bestStone.stone.size_L_in - section.length,
+            remainingWidth: bestStone.stone.size_W_in
           };
 
           usedStones.push(stoneObj);
@@ -361,7 +358,7 @@ function calculateAll() {
         });
       }
     } else {
-      // Quartz - can mix sizes freely
+      // Quartz - can mix sizes freely, no same-size requirement
       groupSections.forEach(section => {
         const stone = findBestStone(availableStones, section.length, section.width, section.type);
         
@@ -406,33 +403,30 @@ function calculateAll() {
     widthGroups[key].push(section);
   });
 
-  // Process each width group
+  // Process each width group - optimize combinations
   for (const [width, widthSections] of Object.entries(widthGroups)) {
-    // Try to combine multiple sections onto single stones
     let remaining = [...widthSections];
     
     while (remaining.length > 0) {
+      // Start with the largest remaining section
       const section = remaining.shift();
-      
-      // Try to find a stone that can fit this section plus more from remaining
       let totalLength = section.length;
       let sectionsToFit = [section];
       
-      // Greedy: try to fit as many remaining sections as possible
-      for (let i = 0; i < remaining.length; i++) {
-        if (totalLength + remaining[i].length <= 108) { // Try to fit on largest common stone (108)
-          totalLength += remaining[i].length;
+      // Try to combine with other remaining sections that have the same width
+      for (let i = remaining.length - 1; i >= 0; i--) {
+        const potentialLength = totalLength + remaining[i].length;
+        
+        // Check if there's a stone that can fit this combination
+        const testStone = findBestStone(availableStones, potentialLength, parseFloat(width), section.type);
+        if (testStone.found) {
+          totalLength = potentialLength;
           sectionsToFit.push(remaining[i]);
+          remaining.splice(i, 1);
         }
       }
       
-      // Remove fitted sections from remaining
-      sectionsToFit.slice(1).forEach(s => {
-        const idx = remaining.findIndex(r => r.id === s.id);
-        if (idx > -1) remaining.splice(idx, 1);
-      });
-      
-      // Get stone for all fitted sections
+      // Get the best stone for all fitted sections
       const stone = findBestStone(availableStones, totalLength, parseFloat(width), section.type);
       
       if (!stone.found) {
