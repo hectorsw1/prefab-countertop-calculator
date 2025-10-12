@@ -357,23 +357,41 @@ function calculateAll() {
         usedStones.push(...jointGroupStones);
       }
     } else {
-      // Quartz - can mix sizes freely, no same-size requirement
+      // Quartz - can mix sizes freely, but still try to use leftovers efficiently
+      const quartJointGroupStones = [];
+      
       groupSections.forEach(section => {
-        const stone = findBestStone(availableStones, section.length, section.width, section.type);
+        let fitted = false;
         
-        if (!stone.found) {
-          alert(`${section.name}: ${stone.message}`);
-          return;
+        // Try to fit on existing stones from THIS joint group
+        for (let stoneObj of quartJointGroupStones) {
+          if (stoneObj.remainingLength >= section.length && stoneObj.remainingWidth >= section.width) {
+            stoneObj.usedFor.push(section.name);
+            stoneObj.remainingLength -= section.length;
+            fitted = true;
+            break;
+          }
+        }
+        
+        // If not fitted, get best stone for this section (Quartz can use different sizes)
+        if (!fitted) {
+          const stone = findBestStone(availableStones, section.length, section.width, section.type);
+          
+          if (!stone.found) {
+            alert(`${section.name}: ${stone.message}`);
+            return;
+          }
+
+          const stoneObj = {
+            stone: stone.stone,
+            usedFor: [section.name],
+            remainingLength: stone.stone.size_L_in - section.length,
+            remainingWidth: stone.stone.size_W_in
+          };
+
+          quartJointGroupStones.push(stoneObj);
         }
 
-        const stoneObj = {
-          stone: stone.stone,
-          usedFor: [section.name],
-          remainingLength: stone.stone.size_L_in - section.length,
-          remainingWidth: stone.stone.size_W_in
-        };
-
-        usedStones.push(stoneObj);
         totalInputSqFt += (section.length * section.width) / 144;
 
         if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
@@ -384,6 +402,9 @@ function calculateAll() {
           });
         }
       });
+      
+      // Add all stones from this joint group to the main array
+      usedStones.push(...quartJointGroupStones);
     }
   }
 
