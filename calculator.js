@@ -315,16 +315,33 @@ function calculateAll() {
         });
       } else {
         // Need separate stones for each section - ALL must be the SAME SIZE as bestStone
+        // But try to fit sections on leftovers from previous stones in this joint group
+        const jointGroupStones = [];
+        
         groupSections.forEach(section => {
-          // Use the EXACT same stone size for all jointed pieces
-          const stoneObj = {
-            stone: bestStone.stone,
-            usedFor: [section.name],
-            remainingLength: bestStone.stone.size_L_in - section.length,
-            remainingWidth: bestStone.stone.size_W_in
-          };
-
-          usedStones.push(stoneObj);
+          let fitted = false;
+          
+          // Try to fit on existing stones from THIS joint group
+          for (let stoneObj of jointGroupStones) {
+            if (stoneObj.remainingLength >= section.length && stoneObj.remainingWidth >= section.width) {
+              stoneObj.usedFor.push(section.name);
+              stoneObj.remainingLength -= section.length;
+              fitted = true;
+              break;
+            }
+          }
+          
+          // If not fitted, get a new stone (same size as bestStone)
+          if (!fitted) {
+            const stoneObj = {
+              stone: bestStone.stone,
+              usedFor: [section.name],
+              remainingLength: bestStone.stone.size_L_in - section.length,
+              remainingWidth: bestStone.stone.size_W_in
+            };
+            jointGroupStones.push(stoneObj);
+          }
+          
           totalInputSqFt += (section.length * section.width) / 144;
 
           if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
@@ -335,6 +352,9 @@ function calculateAll() {
             });
           }
         });
+        
+        // Add all stones from this joint group to the main array
+        usedStones.push(...jointGroupStones);
       }
     } else {
       // Quartz - can mix sizes freely, no same-size requirement
