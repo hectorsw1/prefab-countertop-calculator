@@ -411,8 +411,9 @@ function calculateAll() {
   // Sort standalone sections by size (largest first)
   standaloneSections.sort((a, b) => (b.length * b.width) - (a.length * a.width));
 
-  // Separate islands from countertops - islands can use narrower stones
+  // Separate sections by type
   const islandSections = standaloneSections.filter(s => s.type === 'island');
+  const backsplashSections = standaloneSections.filter(s => s.type === 'backsplash-4' || s.type === 'backsplash-full');
   const countertopSections = standaloneSections.filter(s => s.type !== 'island' && s.type !== 'backsplash-4' && s.type !== 'backsplash-full');
 
   // Group countertop sections by same width for potential combining
@@ -516,6 +517,37 @@ function calculateAll() {
       length: Math.max(1, section.length - 2),
       width: Math.max(1, section.width - 3)
     });
+  });
+
+  // Process backsplash sections - they need stone but NO plywood
+  backsplashSections.forEach(section => {
+    // Determine stone type - use "Backsplash" type from CSV
+    const stoneType = 'Backsplash';
+    
+    // Try to find backsplash stone
+    let stone = findBestStone(availableStones, section.length, section.width, stoneType);
+    
+    // If no backsplash stone available, try without type filter
+    if (!stone.found) {
+      stone = findBestStone(availableStones, section.length, section.width);
+    }
+    
+    if (!stone.found) {
+      alert(`${section.name}: ${stone.message}`);
+      return;
+    }
+
+    const stoneObj = {
+      stone: stone.stone,
+      usedFor: [section.name],
+      remainingLength: stone.stone.size_L_in - section.length,
+      remainingWidth: stone.stone.size_W_in
+    };
+
+    usedStones.push(stoneObj);
+    totalInputSqFt += (section.length * section.width) / 144;
+
+    // Backsplashes do NOT need plywood
   });
 
   let totalStoneSqFt = 0;
