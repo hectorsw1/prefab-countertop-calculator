@@ -273,77 +273,82 @@ function calculateAll() {
     if (isNaturalStone) {
       // For natural stone (Granite/Marble/Quartzite), all jointed pieces must use EXACT SAME stone size
       
-      // Find the largest section in the group
-      const largestSection = groupSections.reduce((max, section) => 
-        (section.length * section.width > max.length * max.width) ? section : max
+      const sectionType = groupSections[0].type;
+      const totalLengthNeeded = groupSections.reduce((sum, s) => sum + s.length, 0);
+      
+      // Try different stone sizes to find the best fit
+      const maxLength = Math.max(...groupSections.map(s => s.length));
+      const maxWidth = Math.max(...groupSections.map(s => s.width));
+      
+      // Get all available stone sizes that could work
+      const potentialStones = availableStones.filter(stone => 
+        ((stone.size_L_in >= maxLength && stone.size_W_in >= maxWidth) ||
+         (stone.size_L_in >= maxWidth && stone.size_W_in >= maxLength)) &&
+        (!sectionType || stone.type.toLowerCase() === sectionType.toLowerCase())
       );
       
-      const sectionType = groupSections[0].type;
-      
-      // Find the best stone for the largest section
-      const bestStone = findBestStone(availableStones, largestSection.length, largestSection.width, sectionType);
-      if (!bestStone.found) {
-        alert(`Joint Group "${groupName}": ${bestStone.message}`);
+      if (potentialStones.length === 0) {
+        alert(`Joint Group "${groupName}": No stone available`);
         continue;
       }
-
-      // Get total length needed for all sections
-      const totalLengthNeeded = groupSections.reduce((sum, s) => sum + s.length, 0);
-
-      // Try to fit all sections on one stone
-      if (totalLengthNeeded <= bestStone.stone.size_L_in) {
-        // All sections fit on ONE stone
-        const stoneObj = {
-          stone: bestStone.stone,
-          usedFor: groupSections.map(s => s.name),
-          remainingLength: bestStone.stone.size_L_in - totalLengthNeeded,
-          remainingWidth: bestStone.stone.size_W_in
-        };
-
-        usedStones.push(stoneObj);
-
-        groupSections.forEach(section => {
-          totalInputSqFt += (section.length * section.width) / 144;
-
-          if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
-            plywoodPieces.push({
-              name: section.name,
-              length: Math.max(1, section.length - 2),
-              width: Math.max(1, section.width - 3)
-            });
-          }
-        });
-      } else {
-        // Need separate stones for each section - ALL must be the SAME SIZE as bestStone
-        // But try to fit sections on leftovers from previous stones in this joint group
-        const jointGroupStones = [];
+      
+      // Sort by size (smallest first)
+      potentialStones.sort((a, b) => {
+        const sizeA = a.size_L_in * a.size_W_in;
+        const sizeB = b.size_L_in * b.size_W_in;
+        return sizeA - sizeB;
+      });
+      
+      // Try each stone size and find which needs fewest pieces
+      let bestStone = null;
+      let bestPieceCount = Infinity;
+      let bestArrangement = null;
+      
+      for (const candidateStone of potentialStones) {
+        // Try to pack sections with this stone size
+        const arrangement = [];
+        const sectionsToPlace = [...groupSections].sort((a, b) => b.length - a.length);
         
-        groupSections.forEach(section => {
-          let fitted = false;
+        while (sectionsToPlace.length > 0) {
+          const currentPiece = { stone: candidateStone, sections: [], usedLength: 0 };
           
-          // Try to fit on existing stones from THIS joint group
-          for (let stoneObj of jointGroupStones) {
-            if (stoneObj.remainingLength >= section.length && stoneObj.remainingWidth >= section.width) {
-              stoneObj.usedFor.push(section.name);
-              stoneObj.remainingLength -= section.length;
-              fitted = true;
-              break;
+          // Greedy: fit as many sections as possible on this piece
+          for (let i = sectionsToPlace.length - 1; i >= 0; i--) {
+            if (currentPiece.usedLength + sectionsToPlace[i].length <= candidateStone.size_L_in) {
+              currentPiece.sections.push(sectionsToPlace[i]);
+              currentPiece.usedLength += sectionsToPlace[i].length;
+              sectionsToPlace.splice(i, 1);
             }
           }
           
-          // If not fitted, get a new stone (same size as bestStone)
-          if (!fitted) {
-            const stoneObj = {
-              stone: bestStone.stone,
-              usedFor: [section.name],
-              remainingLength: bestStone.stone.size_L_in - section.length,
-              remainingWidth: bestStone.stone.size_W_in
-            };
-            jointGroupStones.push(stoneObj);
-          }
-          
+          arrangement.push(currentPiece);
+        }
+        
+        // Check if this is better than our best so far
+        if (arrangement.length < bestPieceCount) {
+          bestPieceCount = arrangement.length;
+          bestStone = candidateStone;
+          bestArrangement = arrangement;
+        }
+        
+        // If we can fit all on one stone, no need to check larger stones
+        if (bestPieceCount === 1) break;
+      }
+      
+      // Use the best arrangement found
+      bestArrangement.forEach(piece => {
+        const stoneObj = {
+          stone: bestStone,
+          usedFor: piece.sections.map(s => s.name),
+          remainingLength: bestStone.size_L_in - piece.usedLength,
+          remainingWidth: bestStone.size_W_in
+        };
+        
+        usedStones.push(stoneObj);
+        
+        piece.sections.forEach(section => {
           totalInputSqFt += (section.length * section.width) / 144;
-
+          
           if (section.type !== 'backsplash-4' && section.type !== 'backsplash-full') {
             plywoodPieces.push({
               name: section.name,
@@ -352,10 +357,7 @@ function calculateAll() {
             });
           }
         });
-        
-        // Add all stones from this joint group to the main array
-        usedStones.push(...jointGroupStones);
-      }
+      });
     } else {
       // Quartz - can mix sizes freely, but still try to use leftovers efficiently
       const quartJointGroupStones = [];
