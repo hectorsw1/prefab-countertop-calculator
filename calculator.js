@@ -528,7 +528,8 @@ function calculateAll() {
   
   // Helper function to extract common prefix (e.g., "bath 1", "bath 2")
   function getGroupPrefix(name) {
-    const match = name.match(/^(.*?)\s*(BS|Backsplash)/i);
+    // Match patterns like "bath 1", "bath 2", "Laundry", etc.
+    const match = name.match(/^([a-zA-Z]+\s*\d*)/);
     return match ? match[1].trim() : name;
   }
   
@@ -542,67 +543,54 @@ function calculateAll() {
   
   const backsplash4Stones = [];
   for (const [prefix, groupSections] of Object.entries(backsplash4Groups)) {
-    // Sort by length (largest first)
+    // Sort by length (largest first) for better packing
     groupSections.sort((a, b) => b.length - a.length);
     
-    // Try to combine all sections in this group
-    const totalLength = groupSections.reduce((sum, s) => sum + s.length, 0);
-    const width = groupSections[0].width; // All 4" backsplashes should have same width
+    let remainingSections = [...groupSections];
     
-    // Try to find a stone that fits the combined length
-    let stone = findBestStone(availableStones, totalLength, width, 'Backsplash');
-    if (!stone.found) {
-      stone = findBestStone(availableStones, totalLength, width);
-    }
-    
-    if (stone.found) {
-      // All sections fit on one stone
+    while (remainingSections.length > 0) {
+      // Try to fit as many sections as possible on one stone
+      let currentLength = 0;
+      let sectionsOnStone = [];
+      
+      // Greedy pack: add sections until we can't fit more
+      for (let i = remainingSections.length - 1; i >= 0; i--) {
+        const testLength = currentLength + remainingSections[i].length;
+        
+        // Try to find a stone that fits this combination
+        let testStone = findBestStone(availableStones, testLength, remainingSections[i].width, 'Backsplash');
+        if (!testStone.found) {
+          testStone = findBestStone(availableStones, testLength, remainingSections[i].width);
+        }
+        
+        if (testStone.found) {
+          currentLength = testLength;
+          sectionsOnStone.push(remainingSections[i]);
+          remainingSections.splice(i, 1);
+        }
+      }
+      
+      // Get the stone for these sections
+      const width = sectionsOnStone[0].width;
+      let stone = findBestStone(availableStones, currentLength, width, 'Backsplash');
+      if (!stone.found) {
+        stone = findBestStone(availableStones, currentLength, width);
+      }
+      
+      if (!stone.found) {
+        alert(`Cannot find stone for ${prefix} backsplash sections`);
+        break;
+      }
+      
       const stoneObj = {
         stone: stone.stone,
-        usedFor: groupSections.map(s => s.name),
-        remainingLength: stone.stone.size_L_in - totalLength,
+        usedFor: sectionsOnStone.map(s => s.name),
+        remainingLength: stone.stone.size_L_in - currentLength,
         remainingWidth: stone.stone.size_W_in
       };
       backsplash4Stones.push(stoneObj);
       
-      groupSections.forEach(section => {
-        totalInputSqFt += (section.length * section.width) / 144;
-      });
-    } else {
-      // Can't fit all on one stone, process individually
-      groupSections.forEach(section => {
-        let fitted = false;
-        
-        // Try to fit on existing backsplash stones
-        for (let stoneObj of backsplash4Stones) {
-          if (stoneObj.remainingLength >= section.length && stoneObj.remainingWidth >= section.width) {
-            stoneObj.usedFor.push(section.name);
-            stoneObj.remainingLength -= section.length;
-            fitted = true;
-            break;
-          }
-        }
-        
-        if (!fitted) {
-          let stone = findBestStone(availableStones, section.length, section.width, 'Backsplash');
-          if (!stone.found) {
-            stone = findBestStone(availableStones, section.length, section.width);
-          }
-          
-          if (!stone.found) {
-            alert(`${section.name}: ${stone.message}`);
-            return;
-          }
-          
-          const stoneObj = {
-            stone: stone.stone,
-            usedFor: [section.name],
-            remainingLength: stone.stone.size_L_in - section.length,
-            remainingWidth: stone.stone.size_W_in
-          };
-          backsplash4Stones.push(stoneObj);
-        }
-        
+      sectionsOnStone.forEach(section => {
         totalInputSqFt += (section.length * section.width) / 144;
       });
     }
